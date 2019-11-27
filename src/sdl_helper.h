@@ -41,8 +41,12 @@ public:
 
   void exit() { willQuit = true; }
 
+  void blit(SDL_Texture* texture, const SDL_Rect& src, int dx, int dy);
   void blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy);
+  void blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy, int dw, int dh);
   void blit(SDL_Texture* texture, int dx, int dy);
+
+  SDL_Renderer* getRenderer() { return renderer; }
 };
 
 template<typename EventHandler, typename Renderer>
@@ -75,7 +79,7 @@ bool SDL<typename EventHandler, typename Renderer>::init()
   renderer = SDL_CreateRenderer(window, -1, 0);
 
   SDL_SetRenderDrawColor(renderer, 236, 232, 228, 255);
-  
+
   return true;
 }
 
@@ -141,13 +145,25 @@ void SDL<typename EventHandler, typename Renderer>::handleEvents()
   }
 }
 
+template<typename EventHandler, typename Renderer>
+inline void SDL<typename EventHandler, typename Renderer>::blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy, int dw, int dh)
+{
+  SDL_Rect from = { sx, sy, w, h };
+  SDL_Rect to = { dx, dy, dw, dh };
+  SDL_RenderCopy(renderer, texture, &from, &to);
+}
+
+template<typename EventHandler, typename Renderer>
+inline void SDL<typename EventHandler, typename Renderer>::blit(SDL_Texture* texture, const SDL_Rect& from, int dx, int dy)
+{
+  SDL_Rect to = { dx, dy, from.w, from.h };
+  SDL_RenderCopy(renderer, texture, &from, &to);
+}
 
 template<typename EventHandler, typename Renderer>
 inline void SDL<typename EventHandler, typename Renderer>::blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy)
 {
-  SDL_Rect from = { sx, sy, w, h };
-  SDL_Rect to = { dx, dy, w, h };
-  SDL_RenderCopy(renderer, texture, &from, &to);
+  blit(texture, { sx, sy, w, h }, dx, dy);
 }
 
 

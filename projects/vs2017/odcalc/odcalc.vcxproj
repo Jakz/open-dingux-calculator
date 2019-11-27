@@ -84,9 +84,10 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\Jack\Documents\dev\openmom\libs\sdl2\win\include;C:\Users\Jack\Documents\dev\sdl\SDL2_ttf\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Jack\Documents\dev\openmom\libs\sdl2\win\include;C:\Users\Jack\Documents\dev\sdl\SDL2_ttf\include;$(SolutionDir)../../../src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>
       </LanguageStandard>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>C:\Users\Jack\Documents\dev\openmom\libs\sdl2\win\lib\x64\SDL2.lib;C:\Users\Jack\Documents\dev\openmom\libs\sdl2\win\lib\x64\SDL2_image.lib;C:\Users\Jack\Documents\dev\openmom\libs\sdl2\win\lib\x64\SDL2main.lib;C:\Users\Jack\Documents\dev\sdl\SDL2_ttf\lib\x64\SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -115,9 +116,10 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\Jack\Documents\dev\openmom\libs\sdl2\win\include;C:\Users\Jack\Documents\dev\sdl\SDL2_ttf\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Jack\Documents\dev\openmom\libs\sdl2\win\include;C:\Users\Jack\Documents\dev\sdl\SDL2_ttf\include;$(SolutionDir)../../../src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>
       </LanguageStandard>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -128,6 +130,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\main.cpp" />
+    <ClCompile Include="..\..\..\src\sdl_fontcache.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\src\sdl_fontcache.h" />
+    <ClInclude Include="..\..\..\src\sdl_helper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
