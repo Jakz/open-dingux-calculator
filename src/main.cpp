@@ -3,6 +3,8 @@
 #include "SDL_ttf.h"
 
 #include <cstdint>
+#include <cstdio>
+#include <cassert>
 
 using u32 = uint32_t;
 
@@ -24,7 +26,8 @@ private:
 
 
 public:
-  SDL() : window(nullptr), renderer(nullptr), textureUI(nullptr), willQuit(false), ticks(0)
+  SDL() : window(nullptr), renderer(nullptr), textureUI(nullptr), font(nullptr),
+  willQuit(false), ticks(0)
   {
 
   }
@@ -44,19 +47,35 @@ public:
 
 bool SDL::init()
 {
-  if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+  if (SDL_Init(SDL_INIT_EVERYTHING))
+  {
+    printf("Error on SDL_Init().\n");
     return false;
+  }
 
-  if (IMG_Init(IMG_INIT_PNG) == 0)
+  if (IMG_Init(IMG_INIT_PNG) != IMG_INIT_PNG)
+  {
+    printf("Error on IMG_Init().\n");
     return false;
-
-  TTF_Init();
-
+  }
+    
+  if (TTF_Init())
+  {
+    printf("Error on TTF_Init().\n");
+    return false;
+  }
+  
   // SDL_WINDOW_FULLSCREEN
+#if _WIN32
   window = SDL_CreateWindow("ODCalc v0.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 320, 200, SDL_WINDOW_OPENGL);
+#else
+  window = SDL_CreateWindow("ODCalc v0.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 320, 200, SDL_WINDOW_OPENGL|SDL_WINDOW_FULLSCREEN);
+#endif
   renderer = SDL_CreateRenderer(window, -1, 0);
 
   SDL_SetRenderDrawColor(renderer, 236, 232, 228, 255);
+  
+  return true;
 }
 
 void SDL::loop()
@@ -137,40 +156,55 @@ void SDL::blit(SDL_Texture* texture, int dx, int dy)
   SDL_RenderCopy(renderer, texture, &from, &to);
 }
 
+#ifdef _WIN32
+#define PREFIX  "../../../"
+#else
+#define PREFIX ""
+#endif
+
 bool SDL::loadData()
 {
-  SDL_Surface* surfaceUI = IMG_Load("../../../data/ui.png");
+  SDL_Surface* surfaceUI = IMG_Load("data/ui.png");
 
   if (!surfaceUI)
+  {
+    printf("Error while loading ui.png: %s\n", IMG_GetError());
     return false;
-
+  }
+ 
   textureUI = SDL_CreateTextureFromSurface(renderer, surfaceUI);
   SDL_FreeSurface(surfaceUI);
 
-  font = TTF_OpenFont("../../../data/FreeSans.ttf", 10);
+  font = TTF_OpenFont(PREFIX "data/FreeSans.ttf", 16);
+
+  if (!font)
+  {
+    printf("Error while loading font: %s\n", TTF_GetError());
+    return false;
+  }
 
   return true;
 }
 
 void SDL::render()
 {
+  SDL_RenderClear(renderer);
+
   SDL_Rect rect = { 0, 0, 16, 16 };
   SDL_Rect rect2 = { 10, 10, 16, 16 };
 
-  SDL_RenderClear(renderer);
+
 
   SDL_RenderCopy(renderer, textureUI, &rect, &rect2);
 
 
-  SDL_Color color = { 0, 0, 0 };
+  SDL_Color color = { 0, 0, 0, 255 };
   SDL_Surface* surface = TTF_RenderText_Blended(font, "This is a nice test.", color);
   SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
   blit(texture, 10, 10);
 
   SDL_DestroyTexture(texture);
   SDL_FreeSurface(surface);
-
-
 
   SDL_RenderPresent(renderer);
 }
@@ -179,8 +213,16 @@ int main(int argc, char* argv[])
 {
   SDL sdl;
 
-  sdl.init();
-  sdl.loadData();
+  if (!sdl.init())
+    return -1;
+  
+  if (!sdl.loadData())
+  {
+    printf("Error while loading and initializing data.\n");
+    sdl.deinit();
+    return -1;
+  }
+  
   sdl.loop();
   sdl.deinit();
 
