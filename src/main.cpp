@@ -105,10 +105,10 @@ public:
   }
 };
 
-enum class ButtonStyle
+struct ButtonStyle
 {
-  NORMAL,
-  PRESSED,
+  bool pressed;
+  bool hovered;
 };
 
 class MySDL : public SDL<MySDL, MySDL>
@@ -123,7 +123,7 @@ public:
 
   bool loadData();
 
-  void handleKeyboardEvent(const SDL_Event& event);
+  void handleKeyboardEvent(const SDL_Event& event, bool press);
   void render();
 
   void deinit()
@@ -133,15 +133,9 @@ public:
     SDL::deinit();
   }
 
-  void renderButton(int x, int y, int w, int h, const std::string& label, ButtonStyle style);
+  void renderButton(int x, int y, int w, int h, const std::string& label, SDL_Color color, ButtonStyle style);
+  void renderButtonBackground(int x, int y, int w, int h, int bx, int by);
 };
-
-
-void MySDL::handleKeyboardEvent(const SDL_Event& event)
-{
-  if (event.key.keysym.sym == SDLK_ESCAPE)
-    SDL::exit();
-}
 
 #ifdef _WIN32
 #define PREFIX  "../../../"
@@ -181,71 +175,248 @@ bool MySDL::loadData()
 
 namespace calc
 {
+  struct GridPosition
+  {
+    u16 x, y;
+
+    struct hash_t
+    {
+      size_t operator()(const GridPosition& pos) const
+      {
+        return pos.x << 16 | pos.y;
+      }
+    };
+  };
+  
+  
+
   class Button
   {
   public:
     std::string label;
-    int x, y;
-    int w, h;
+    SDL_Rect position;
+    SDL_Rect gfx;
+    SDL_Color color;
 
   public:
-    Button(std::string label, int x, int y, int w, int h) : label(label), x(x), y(y), w(w), h(h) { }
+    Button(std::string label, SDL_Rect position, SDL_Rect gfx, SDL_Color color) : label(label), position(position), gfx(gfx), color(color) { }
+    Button(std::string label, SDL_Rect position, SDL_Rect gfx) : label(label), position(position), gfx(gfx), color({ 255, 255, 255 }) { }
+  };
+
+  struct ButtonSpec
+  {
+    std::string label;
+    int x, y, w, h;
+    SDL_Color color;
+
+    ButtonSpec(std::string label, int x, int y, int w, int h) : label(label), x(x), y(y), w(w), h(h), color({ 255, 255, 255 }) { }
+    ButtonSpec(std::string label, int x, int y, int w, int h, SDL_Color color) : label(label), x(x), y(y), w(w), h(h), color(color) { }
   };
 
   class Layout
   {
   private:
-    std::vector<Button> buttons;
+    constexpr static int GW = 10, GH = 10;
+
+    int bx, by, cw, ch, m;
+
+    using data_t = std::vector<Button>;
+    data_t _buttons;
+    GridPosition _selectedPosition;
+    data_t::const_iterator _selected;
+    data_t::const_iterator _grid[GW][GH];
+    
 
   public:
-    Layout(int bx, int by, int cw, int ch, int m, const std::initializer_list<Button>& buttons)
+    Layout(int bx, int by, int cw, int ch, int m) : bx(bx), by(by), cw(cw), ch(ch), m(m)
     {
-      for (const Button button : buttons)
+
+    }
+
+    void initialize(const std::vector<ButtonSpec>& buttons)
+    {
+      /* reserve to avoid invalidation of iterators */
+      _buttons.reserve(buttons.size());
+
+      for (const ButtonSpec& button : buttons)
       {
         int btx = bx + button.x * (cw + m);
         int bty = by + button.y * (ch + m);
         int bw = cw * button.w + m * (button.w - 1);
         int bh = ch * button.h + m * (button.h - 1);
 
-        this->buttons.emplace_back(button.label, btx, bty, bw, bh);
+        _buttons.emplace_back(button.label, SDL_Rect{ button.x, button.y, button.w, button.h }, SDL_Rect{ btx, bty, bw, bh }, button.color);
       }
+
+      /* initialize grid to invalid values */
+      for (int y = 0; y < GH; ++y)
+        for (int x = 0; x < GW; ++x)
+          _grid[y][x] = _buttons.end();
+
+      /* populate grid with corresponding buttons for easy navigation */
+      for (auto it = _buttons.begin(); it != _buttons.end(); ++it)
+      {
+        const auto& button = *it;
+        for (int x = 0; x < button.position.w; ++x)
+          for (int y = 0; y < button.position.h; ++y)
+            _grid[button.position.y + y][button.position.x + x] = it;
+      }
+
+      _selected = _grid[0][0];
+      _selectedPosition = { 0, 0 };
     }
 
-    decltype(buttons)::const_iterator begin() const { return buttons.begin(); }
-    decltype(buttons)::const_iterator end() const { return buttons.end(); }
+    data_t::const_iterator selected() { return _selected; }
+    data_t::const_iterator begin() const { return _buttons.begin(); }
+    data_t::const_iterator end() const { return _buttons.end(); }
+
+    void hoverNext(int dx, int dy)
+    {
+      GridPosition current = _selectedPosition;
+
+      if (dx)
+      {
+        while ((current.x < GW - 1 && dx > 0) || (current.x > 0 && dx < 0))
+        {
+          current.x += dx;
+          const auto& it = _grid[current.y][current.x];
+          if (it != _buttons.end() && it != _selected)
+          {
+            _selected = it;
+            _selectedPosition = current;
+            return;
+          }
+        }
+      }
+      else if (dy)
+      {
+        while ((current.y < GH - 1 && dy > 0) || (current.y > 0 && dy < 0))
+        {
+          current.y += dy;
+          const auto& it = _grid[current.y][current.x];
+          if (it != _buttons.end() && it != _selected)
+          {
+            _selected = it;
+            _selectedPosition = current;
+            return;
+          }
+        }
+      }
+    }
   };
 
-  class EasyLayout : public Layout
+  class LayoutHelper
   {
-  public:
-    EasyLayout() : Layout(
-      20, 20, 24, 24, 2,
-      {
-        Button("0", 0, 0, 1, 1),
-        Button("1", 0, 1, 1, 1),
+  protected:
+    void addNumberGrid(std::vector<ButtonSpec>& buttons, int bx, int by, int bw, int bh)
+    {
+      buttons.emplace_back(ButtonSpec{ "0", bx, by + 3 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "00", bx + bw, by + 3 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ ".", bx + bw * 2, by + 3 * bh, bw, bh });
 
-        Button("+", 1, 0, 1, 2)
-      }
-    ) { }
+      buttons.emplace_back(ButtonSpec{ "1", bx, by + 2 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "2", bx + bw, by + 2 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "3", bx + bw*2, by + 2 * bh, bw, bh });
+
+      buttons.emplace_back(ButtonSpec{ "4", bx, by + 1 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "5", bx + bw, by + 1 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "6", bx + bw * 2, by + 1 * bh, bw, bh });
+
+      buttons.emplace_back(ButtonSpec{ "7", bx, by, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "8", bx + bw, by, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "9", bx + bw * 2, by, bw, bh });
+    }
+
+  };
+
+  class EasyLayout : public Layout, private LayoutHelper
+  {
+  private:
+    static constexpr int BS = 2;
+  public:
+    EasyLayout() : Layout(2, 60, 20, 12, 2)
+    { 
+      std::vector<ButtonSpec> buttons;
+      buttons.push_back({ "%", 0, 2, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 } });
+
+      LayoutHelper::addNumberGrid(buttons, 2, 2, 3, 2);
+      initialize(buttons);
+    }
   };
 }
 
 calc::EasyLayout layout;
 
+/*
+* D-PAD Left - SDLK_LEFT
+* D-PAD Right - SDLK_RIGHT
+* D-PAD Up - SDLK_UP
+* D-PAD Down - SDLK_DOWN
+* Y button - SDLK_SPACE
+* X button - SDLK_LSHIFT
+* A button - SDLK_LCTRL
+* B button - SDLK_LALT
+* START button - SDLK_RETURN
+* SELECT button - SDLK_ESC
+* L shoulder - SDLK_TAB
+* R shoulder - SDLK_BACKSPACE
+* Power slider in up position - SDLK_POWER (not encouraged to map in game, as it's used by the pwswd daemon)
+* Power slider in down position - SDLK_PAUSE
+
+*/
+
+bool pressed = false;
+
+void MySDL::handleKeyboardEvent(const SDL_Event& event, bool press)
+{
+  switch (event.key.keysym.sym)
+  {
+  case SDLK_ESCAPE:
+    SDL::exit();
+    break;
+
+  case SDLK_LEFT:
+    if (press)
+      layout.hoverNext(-1, 0);
+    pressed = false;
+    break;
+  case SDLK_RIGHT:
+    if (press)
+      layout.hoverNext(1, 0);
+    pressed = false;
+    break;
+  case SDLK_UP:
+    if (press)
+      layout.hoverNext(0, -1);
+    pressed = false;
+    break;
+  case SDLK_DOWN:
+    if (press)
+      layout.hoverNext(0, 1);
+    pressed = false;
+    break;
+
+  case SDLK_LALT:
+    pressed = press;
+    break;
+  }
+}
 
 void MySDL::render()
 {
   SDL_RenderClear(renderer);
 
-  for (const auto& button : layout)
+  for (auto it = layout.begin(); it != layout.end(); ++it)
   {
-    renderButton(button.x, button.y, button.w, button.h, button.label, ButtonStyle::NORMAL);
+    const auto& button = *it;
+    renderButton(button.gfx.x, button.gfx.y, button.gfx.w, button.gfx.h, button.label, button.color, { pressed && it == layout.selected(), it == layout.selected() });
   }
 
   SDL_RenderPresent(renderer);
 }
 
-void MySDL::renderButton(int x, int y, int w, int h, const std::string& label, ButtonStyle style)
+void MySDL::renderButtonBackground(int x, int y, int w, int h, int bx, int by)
 {
   assert(w >= 16 && h >= 16);
 
@@ -253,26 +424,42 @@ void MySDL::renderButton(int x, int y, int w, int h, const std::string& label, B
   constexpr int M = 6;
   constexpr int K = 4;
 
-  const int BX = style == ButtonStyle::PRESSED ? 16 : 0;
-  const int BY = 0;
+  const int BX = bx;
+  const int BY = by;
 
   blit(textureUI, BX, BY, S, S, x, y); /* top left */
   blit(textureUI, BX + S, BY, S, S, x + w - S, y); /* top right */
-  blit(textureUI, BX, S, BY + S, S, x, y + h - S); /* bottom left */
+  blit(textureUI, BX, BY + S, S, S, x, y + h - S); /* bottom left */
   blit(textureUI, BX + S, BY + S, S, S, x + w - S, y + h - S); /* bottom right */
 
   blit(textureUI, BX + M, BY, K, S, x + S, y, w - S * 2, S); /* top */
   blit(textureUI, BX + M, BY + S, K, S, x + S, y + h - S, w - S * 2, S); /* bottom */
-  blit(textureUI, BX, M, BY + S, K, x, y + S, S, h - S * 2); /* left */
+  blit(textureUI, BX, BY + M, S, K, x, y + S, S, h - S * 2); /* left */
   blit(textureUI, BX + S, BY + M, S, K, x + w - S, y + S, S, h - S * 2); /* right */
 
   blit(textureUI, BX + M, BY + M, K, K, x + S, y + S, w - S * 2, h - S * 2); /* center */
+}
 
+void MySDL::renderButton(int x, int y, int w, int h, const std::string& label, SDL_Color color, ButtonStyle style)
+{
+  assert(w >= 16 && h >= 16);
+
+  const int BX = style.pressed ? 16 : 0;
+  const int BY = 0;
+
+  SDL_SetTextureColorMod(textureUI, color.r, color.g, color.b);
+  renderButtonBackground(x, y, w, h, BX, BY);
+
+  if (style.hovered)
+  {
+    SDL_SetTextureColorMod(textureUI, 255, 255, 255);
+    renderButtonBackground(x, y, w, h, 0, 16);
+  }
 
   int a = FC_GetAscent(font, label.c_str());
   int lh = FC_GetLineHeight(font);
-  float tx = x + w / 2 + (style == ButtonStyle::PRESSED ? 0.5 : 0);
-  float ty = y + h / 2 + (style == ButtonStyle::PRESSED ? 0.5 : 0);
+  float tx = x + w / 2 + (style.pressed ? 0.5 : 0);
+  float ty = y + h / 2 + (style.pressed ? 0.5 : 0);
   FC_DrawAlign(font, getRenderer(), tx, ty - a + lh / 2, FC_ALIGN_CENTER, label.c_str());
 }
 

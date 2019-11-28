@@ -7,6 +7,7 @@
 #include <cassert>
 
 using u32 = uint32_t;
+using u16 = uint16_t;
 
 static const u32 FRAME_RATE = 60;
 static constexpr float TICKS_PER_FRAME = 1000 / (float)FRAME_RATE;
@@ -139,7 +140,11 @@ void SDL<typename EventHandler, typename Renderer>::handleEvents()
       break;
 
     case SDL_KEYDOWN:
-      eventHandler.handleKeyboardEvent(event);
+      eventHandler.handleKeyboardEvent(event, true);
+      break;
+
+    case SDL_KEYUP:
+      eventHandler.handleKeyboardEvent(event, false);
       break;
     }
   }
