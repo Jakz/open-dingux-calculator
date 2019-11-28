@@ -17,7 +17,6 @@ struct ButtonStyle
 class MySDL : public SDL<MySDL, MySDL>
 {
 private:
-  LabelCache labelCache;
   SDL_Texture* textureUI;
   FC_Font* font;
 
@@ -74,9 +73,33 @@ bool MySDL::loadData()
   return true;
 }
 
-#include <vector>
-
 namespace calc
+{
+  class Calculator
+  {
+  public:
+    using value_t = double;
+
+  private:
+    value_t _value;
+
+  public:
+    void set(value_t value) { _value = value; }
+
+    value_t value() const { return _value; }
+
+    void digit(int digit)
+    {
+      _value *= 10;
+      _value += digit;
+    }
+  };
+}
+
+#include <vector>
+#include <functional>
+
+namespace gfx
 {
   struct GridPosition
   {
@@ -96,14 +119,17 @@ namespace calc
   class Button
   {
   public:
+    using lambda_t = std::function<void(calc::Calculator&)>;
+
     std::string label;
     SDL_Rect position;
     SDL_Rect gfx;
     SDL_Color color;
+    lambda_t lambda;
 
   public:
-    Button(std::string label, SDL_Rect position, SDL_Rect gfx, SDL_Color color) : label(label), position(position), gfx(gfx), color(color) { }
-    Button(std::string label, SDL_Rect position, SDL_Rect gfx) : label(label), position(position), gfx(gfx), color({ 255, 255, 255 }) { }
+    Button(std::string label, lambda_t lambda, SDL_Rect position, SDL_Rect gfx, SDL_Color color) : label(label), position(position), gfx(gfx), color(color), lambda(lambda) { }
+    Button(std::string label, lambda_t lambda, SDL_Rect position, SDL_Rect gfx) : label(label), position(position), gfx(gfx), color({ 255, 255, 255 }), lambda(lambda) { }
   };
 
   struct ButtonSpec
@@ -111,9 +137,10 @@ namespace calc
     std::string label;
     int x, y, w, h;
     SDL_Color color;
+    Button::lambda_t lambda;
 
-    ButtonSpec(std::string label, int x, int y, int w, int h) : label(label), x(x), y(y), w(w), h(h), color({ 255, 255, 255 }) { }
-    ButtonSpec(std::string label, int x, int y, int w, int h, SDL_Color color) : label(label), x(x), y(y), w(w), h(h), color(color) { }
+    ButtonSpec(std::string label, int x, int y, int w, int h, Button::lambda_t lambda) : label(label), x(x), y(y), w(w), h(h), color({ 255, 255, 255 }), lambda(lambda) { }
+    ButtonSpec(std::string label, int x, int y, int w, int h, SDL_Color color, Button::lambda_t lambda) : label(label), x(x), y(y), w(w), h(h), color(color), lambda(lambda) { }
   };
 
   class Layout
@@ -159,7 +186,7 @@ namespace calc
         int bw = cw * button.w + m * (button.w - 1);
         int bh = ch * button.h + m * (button.h - 1);
 
-        _buttons.emplace_back(button.label, SDL_Rect{ button.x, button.y, button.w, button.h }, SDL_Rect{ btx, bty, bw, bh }, button.color);
+        _buttons.emplace_back(button.label, button.lambda, SDL_Rect{ button.x, button.y, button.w, button.h }, SDL_Rect{ btx, bty, bw, bh }, button.color);
         gw = std::max(button.x + button.w, gw);
         gh = std::max(button.y + button.h, gh);
       }
@@ -181,7 +208,8 @@ namespace calc
       _selectedPosition = { 0, 0 };
     }
 
-    data_t::const_iterator selected() { return _selected; }
+    bool hasSelection() const { return selected() != end(); }
+    data_t::const_iterator selected() const { return _selected; }
     data_t::const_iterator begin() const { return _buttons.begin(); }
     data_t::const_iterator end() const { return _buttons.end(); }
 
@@ -220,55 +248,75 @@ namespace calc
     }
   };
 
+  enum ValueRenderMode
+  {
+    DECIMAL
+  };
+
   class LayoutHelper
   {
   protected:
     void addNumberGrid(std::vector<ButtonSpec>& buttons, int bx, int by, int bw, int bh)
     {
-      buttons.emplace_back(ButtonSpec{ "0", bx, by + 3 * bh, bw, bh });
-      buttons.emplace_back(ButtonSpec{ "00", bx + bw, by + 3 * bh, bw, bh });
-      buttons.emplace_back(ButtonSpec{ ".", bx + bw * 2, by + 3 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "0", bx, by + 3 * bh, bw, bh, [](calc::Calculator& c) { c.digit(0); } });
+      buttons.emplace_back(ButtonSpec{ "00", bx + bw, by + 3 * bh, bw, bh, [](calc::Calculator& c) { c.digit(0); c.digit(0); } });
+      buttons.emplace_back(ButtonSpec{ ".", bx + bw * 2, by + 3 * bh, bw, bh, [](calc::Calculator& c) {} });
 
-      buttons.emplace_back(ButtonSpec{ "1", bx, by + 2 * bh, bw, bh });
-      buttons.emplace_back(ButtonSpec{ "2", bx + bw, by + 2 * bh, bw, bh });
-      buttons.emplace_back(ButtonSpec{ "3", bx + bw*2, by + 2 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "1", bx, by + 2 * bh, bw, bh, [](calc::Calculator& c) { c.digit(1); } });
+      buttons.emplace_back(ButtonSpec{ "2", bx + bw, by + 2 * bh, bw, bh, [](calc::Calculator& c) { c.digit(2); } });
+      buttons.emplace_back(ButtonSpec{ "3", bx + bw*2, by + 2 * bh, bw, bh, [](calc::Calculator& c) { c.digit(3); } });
 
-      buttons.emplace_back(ButtonSpec{ "4", bx, by + 1 * bh, bw, bh });
-      buttons.emplace_back(ButtonSpec{ "5", bx + bw, by + 1 * bh, bw, bh });
-      buttons.emplace_back(ButtonSpec{ "6", bx + bw * 2, by + 1 * bh, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "4", bx, by + 1 * bh, bw, bh, [](calc::Calculator& c) { c.digit(4); } });
+      buttons.emplace_back(ButtonSpec{ "5", bx + bw, by + 1 * bh, bw, bh, [](calc::Calculator& c) { c.digit(5); } });
+      buttons.emplace_back(ButtonSpec{ "6", bx + bw * 2, by + 1 * bh, bw, bh, [](calc::Calculator& c) { c.digit(6); } });
 
-      buttons.emplace_back(ButtonSpec{ "7", bx, by, bw, bh });
-      buttons.emplace_back(ButtonSpec{ "8", bx + bw, by, bw, bh });
-      buttons.emplace_back(ButtonSpec{ "9", bx + bw * 2, by, bw, bh });
+      buttons.emplace_back(ButtonSpec{ "7", bx, by, bw, bh, [](calc::Calculator& c) { c.digit(7); } });
+      buttons.emplace_back(ButtonSpec{ "8", bx + bw, by, bw, bh, [](calc::Calculator& c) { c.digit(8); } });
+      buttons.emplace_back(ButtonSpec{ "9", bx + bw * 2, by, bw, bh, [](calc::Calculator& c) { c.digit(9); } });
+    }
+
+  public:
+    using value_t = calc::Calculator::value_t;
+
+    void renderValue(char* dest, size_t length, ValueRenderMode mode, calc::Calculator::value_t value)
+    {
+      value_t truncated = std::trunc(value);
+      if (truncated == value)
+        sprintf(dest, "%ld", (s64)value);
+      else
+        sprintf(dest, "%f", value);
     }
 
   };
 
-  class EasyLayout : public Layout, private LayoutHelper
+  class EasyLayout : public Layout, public LayoutHelper
   {
   private:
     static constexpr int BS = 2;
   public:
     EasyLayout() : Layout(18, 48, 20, 12, 2)
     { 
+      Button::lambda_t empty = [](calc::Calculator&) {};
+
+      
       std::vector<ButtonSpec> buttons;
-      buttons.push_back({ "%%", 0, 2, 2, 2, { 200, 200, 200 } });
-      buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 } });
-      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 } });
-      buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 } });
+      buttons.push_back({ "%%", 0, 2, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 }, empty });
+      buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 }, empty });
 
 
-      buttons.push_back({ "MC", 0, 0, 2, 2, { 200, 200, 200 } });
-      buttons.push_back({ "MR", 2, 0, 2, 2, { 200, 200, 200 } });
-      buttons.push_back({ "M-", 4, 0, 2, 2, { 200, 200, 200 } });
-      buttons.push_back({ "M+", 6, 0, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "MC", 0, 0, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "MR", 2, 0, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "M-", 4, 0, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "M+", 6, 0, 2, 2, { 200, 200, 200 }, empty });
 
 
-      buttons.push_back({ "÷", 9, 0, 2, 2, { 200, 200, 200 } });
-      buttons.push_back({ "×", 11, 0, 2, 2, { 200, 200, 200 } });
-      buttons.push_back({ "-", 11, 2, 2, 2, { 200, 200, 200 } });
-      buttons.push_back({ "+", 11, 4, 2, 4, { 200, 200, 200 } });
-      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "÷", 9, 0, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "×", 11, 0, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "-", 11, 2, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "+", 11, 4, 2, 4, { 200, 200, 200 }, empty });
+      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 }, empty });
 
 
       LayoutHelper::addNumberGrid(buttons, 2, 2, 3, 2);
@@ -294,24 +342,9 @@ namespace calc
 * Power slider in down position - SDLK_PAUSE
 
 */
-namespace calc
-{
-  class Calculator
-  {
-  public:
-    using value_t = double;
 
-  private:
-    value_t _value;
 
-  public:
-    void set(value_t value) { _value = value; }
-
-    value_t value() const { return _value; }
-  };
-}
-
-calc::EasyLayout layout;
+gfx::EasyLayout layout;
 calc::Calculator calculator;
 
 bool pressed = false;
@@ -346,7 +379,13 @@ void MySDL::handleKeyboardEvent(const SDL_Event& event, bool press)
     break;
 
   case SDLK_LALT:
-    pressed = press;
+    if (!event.key.repeat)
+    {
+      pressed = press;
+      if (press && layout.hasSelection())
+        layout.selected()->lambda(calculator);
+    }
+
     break;
   }
 }
@@ -364,8 +403,8 @@ void MySDL::render()
   renderButtonBackground(18, 10, 284, 30, 0, 0);
 
   static char buffer[512];
-  sprintf(buffer, "%f", calculator.value());
-  FC_DrawAlign(font, getRenderer(), 284, 25, FC_ALIGN_RIGHT, buffer);
+  layout.renderValue(buffer, 512, gfx::ValueRenderMode::DECIMAL, calculator.value());
+  FC_DrawAlign(font, getRenderer(), 292, 15, FC_ALIGN_RIGHT, buffer);
 
   SDL_RenderPresent(renderer);
 }
