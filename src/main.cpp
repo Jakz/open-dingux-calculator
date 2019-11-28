@@ -216,27 +216,38 @@ namespace calc
   class Layout
   {
   private:
-    constexpr static int GW = 10, GH = 10;
-
     int bx, by, cw, ch, m;
+    int gw, gh;
 
     using data_t = std::vector<Button>;
     data_t _buttons;
     GridPosition _selectedPosition;
     data_t::const_iterator _selected;
-    data_t::const_iterator _grid[GW][GH];
+    data_t::const_iterator* _grid;
     
+    inline data_t::const_iterator& grid(int x, int y)
+    { 
+      assert(x < gw && y < gh);
+      return _grid[y*gw + x];
+    }
 
   public:
-    Layout(int bx, int by, int cw, int ch, int m) : bx(bx), by(by), cw(cw), ch(ch), m(m)
+    Layout(int bx, int by, int cw, int ch, int m) : bx(bx), by(by), cw(cw), ch(ch), m(m), _grid(nullptr)
     {
 
+    }
+
+    ~Layout()
+    {
+      delete [] _grid;
     }
 
     void initialize(const std::vector<ButtonSpec>& buttons)
     {
       /* reserve to avoid invalidation of iterators */
       _buttons.reserve(buttons.size());
+
+      gw = 0, gh = 0;
 
       for (const ButtonSpec& button : buttons)
       {
@@ -246,12 +257,13 @@ namespace calc
         int bh = ch * button.h + m * (button.h - 1);
 
         _buttons.emplace_back(button.label, SDL_Rect{ button.x, button.y, button.w, button.h }, SDL_Rect{ btx, bty, bw, bh }, button.color);
+        gw = std::max(button.x + button.w, gw);
+        gh = std::max(button.y + button.h, gh);
       }
 
       /* initialize grid to invalid values */
-      for (int y = 0; y < GH; ++y)
-        for (int x = 0; x < GW; ++x)
-          _grid[y][x] = _buttons.end();
+      _grid = new data_t::const_iterator[gw*gh];
+      std::fill(_grid, _grid + (gw * gh), _buttons.end());
 
       /* populate grid with corresponding buttons for easy navigation */
       for (auto it = _buttons.begin(); it != _buttons.end(); ++it)
@@ -259,10 +271,10 @@ namespace calc
         const auto& button = *it;
         for (int x = 0; x < button.position.w; ++x)
           for (int y = 0; y < button.position.h; ++y)
-            _grid[button.position.y + y][button.position.x + x] = it;
+            grid(button.position.x + x, button.position.y + y) = it;
       }
 
-      _selected = _grid[0][0];
+      _selected = grid(0, 0);
       _selectedPosition = { 0, 0 };
     }
 
@@ -276,10 +288,10 @@ namespace calc
 
       if (dx)
       {
-        while ((current.x < GW - 1 && dx > 0) || (current.x > 0 && dx < 0))
+        while ((current.x < gw - 1 && dx > 0) || (current.x > 0 && dx < 0))
         {
           current.x += dx;
-          const auto& it = _grid[current.y][current.x];
+          const auto& it = grid(current.x, current.y);
           if (it != _buttons.end() && it != _selected)
           {
             _selected = it;
@@ -290,10 +302,10 @@ namespace calc
       }
       else if (dy)
       {
-        while ((current.y < GH - 1 && dy > 0) || (current.y > 0 && dy < 0))
+        while ((current.y < gh - 1 && dy > 0) || (current.y > 0 && dy < 0))
         {
           current.y += dy;
-          const auto& it = _grid[current.y][current.x];
+          const auto& it = grid(current.x, current.y);
           if (it != _buttons.end() && it != _selected)
           {
             _selected = it;
@@ -334,19 +346,33 @@ namespace calc
   private:
     static constexpr int BS = 2;
   public:
-    EasyLayout() : Layout(2, 60, 20, 12, 2)
+    EasyLayout() : Layout(18, 48, 20, 12, 2)
     { 
       std::vector<ButtonSpec> buttons;
       buttons.push_back({ "%", 0, 2, 2, 2, { 200, 200, 200 } });
       buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 } });
+      buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 } });
+
+
+      buttons.push_back({ "MC", 0, 0, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "MR", 2, 0, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "M-", 4, 0, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "M+", 6, 0, 2, 2, { 200, 200, 200 } });
+
+
+      buttons.push_back({ "÷", 9, 0, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "×", 11, 0, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "-", 11, 2, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "+", 11, 4, 2, 4, { 200, 200, 200 } });
+      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 } });
+
 
       LayoutHelper::addNumberGrid(buttons, 2, 2, 3, 2);
       initialize(buttons);
     }
   };
 }
-
-calc::EasyLayout layout;
 
 /*
 * D-PAD Left - SDLK_LEFT
@@ -365,6 +391,25 @@ calc::EasyLayout layout;
 * Power slider in down position - SDLK_PAUSE
 
 */
+namespace calc
+{
+  class Calculator
+  {
+  public:
+    using value_t = double;
+
+  private:
+    value_t _value;
+
+  public:
+    void set(value_t value) { _value = value; }
+
+    value_t value() const { return _value; }
+  };
+}
+
+calc::EasyLayout layout;
+calc::Calculator calculator;
 
 bool pressed = false;
 
@@ -412,6 +457,12 @@ void MySDL::render()
     const auto& button = *it;
     renderButton(button.gfx.x, button.gfx.y, button.gfx.w, button.gfx.h, button.label, button.color, { pressed && it == layout.selected(), it == layout.selected() });
   }
+
+  renderButtonBackground(18, 10, 284, 30, 0, 0);
+
+  static char buffer[512];
+  sprintf(buffer, "%f", calculator.value());
+  FC_DrawAlign(font, getRenderer(), 284, 25, FC_ALIGN_RIGHT, buffer);
 
   SDL_RenderPresent(renderer);
 }
