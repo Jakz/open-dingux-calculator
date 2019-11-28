@@ -8,103 +8,6 @@
 #include <algorithm>
 #include <unordered_map>
 
-class LabelCache
-{
-public:
-  using map_t = std::unordered_map<std::string, SDL_Rect>;
-
-private:
-  int _w, _h;
-
-  int _currentY, _currentX;
-  int _maxY;
-
-  TTF_Font* _font;
-  SDL_Texture* _texture;
-  map_t _cache;
-
-  map_t::const_iterator compute(const std::string& text)
-  {
-    SDL_Surface* surface = TTF_RenderText_Blended(_font, text.c_str(), { 0, 0, 0, 255 });
-    
-    /* if it doesn't fit current row start a new one */
-    if (_currentX + surface->w > _w)
-    {
-      _currentY = _maxY;
-      _currentX = 0;
-    }
-
-    if (surface->w > _w)
-      assert(false);
-
-    int newY = _currentY + surface->h;
-
-    /* if there is not enough vertical space there's no way */
-    if (newY > _h)
-      assert(false);
-
-    /* update new column max */
-    _maxY = std::max(_maxY, newY);
-
-    auto pair = _cache.emplace(std::make_pair(text, SDL_Rect{ _currentX, _currentY, surface->w, surface->h }));
-
-    _currentX += surface->w;
-
-    u32 format;
-    SDL_QueryTexture(_texture, &format, nullptr, nullptr, nullptr);
-    assert(surface->format->format == format);
-
-    void* pixels;
-    int pitch;
-    SDL_LockTexture(_texture, nullptr, &pixels, &pitch);
-    SDL_LockSurface(surface);
-
-    
-
-
-
-    return pair.first;
-  }
-
-public:
-  LabelCache() : _font(nullptr), _texture(nullptr), _w(0), _h(0), _maxY(0), _currentY(0), _currentX(0)
-  {
-
-  }
-
-  void init(TTF_Font* font, SDL_Renderer* renderer, int w, int h)
-  {
-    _font = font;
-    //_renderer = renderer;
-    _w = w;
-    _h = h;
-
-    SDL_RendererInfo info;
-    SDL_GetRendererInfo(renderer, &info);
-
-    _texture = SDL_CreateTexture(renderer, info.texture_formats[0], SDL_TEXTUREACCESS_STATIC, w, h);
-  }
-
-
-  map_t::const_iterator get(const std::string& text)
-  {
-    map_t::const_iterator it = _cache.find(text);
-
-    if (it == _cache.end())
-      it = compute(text);
-    
-    return it;
-  }
-  
-
-
-
-  ~LabelCache()
-  {
-    SDL_DestroyTexture(_texture);
-  }
-};
-
 struct ButtonStyle
 {
   bool pressed;
@@ -349,7 +252,7 @@ namespace calc
     EasyLayout() : Layout(18, 48, 20, 12, 2)
     { 
       std::vector<ButtonSpec> buttons;
-      buttons.push_back({ "%", 0, 2, 2, 2, { 200, 200, 200 } });
+      buttons.push_back({ "%%", 0, 2, 2, 2, { 200, 200, 200 } });
       buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 } });
       buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 } });
       buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 } });
