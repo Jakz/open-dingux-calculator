@@ -107,7 +107,8 @@ public:
 
 enum class ButtonStyle
 {
-  NORMAL
+  NORMAL,
+  PRESSED,
 };
 
 class MySDL : public SDL<MySDL, MySDL>
@@ -176,15 +177,70 @@ bool MySDL::loadData()
   return true;
 }
 
+#include <vector>
+
+namespace calc
+{
+  class Button
+  {
+  public:
+    std::string label;
+    int x, y;
+    int w, h;
+
+  public:
+    Button(std::string label, int x, int y, int w, int h) : label(label), x(x), y(y), w(w), h(h) { }
+  };
+
+  class Layout
+  {
+  private:
+    std::vector<Button> buttons;
+
+  public:
+    Layout(int bx, int by, int cw, int ch, int m, const std::initializer_list<Button>& buttons)
+    {
+      for (const Button button : buttons)
+      {
+        int btx = bx + button.x * (cw + m);
+        int bty = by + button.y * (ch + m);
+        int bw = cw * button.w + m * (button.w - 1);
+        int bh = ch * button.h + m * (button.h - 1);
+
+        this->buttons.emplace_back(button.label, btx, bty, bw, bh);
+      }
+    }
+
+    decltype(buttons)::const_iterator begin() const { return buttons.begin(); }
+    decltype(buttons)::const_iterator end() const { return buttons.end(); }
+  };
+
+  class EasyLayout : public Layout
+  {
+  public:
+    EasyLayout() : Layout(
+      20, 20, 24, 24, 2,
+      {
+        Button("0", 0, 0, 1, 1),
+        Button("1", 0, 1, 1, 1),
+
+        Button("+", 1, 0, 1, 2)
+      }
+    ) { }
+  };
+}
+
+calc::EasyLayout layout;
+
+
 void MySDL::render()
 {
   SDL_RenderClear(renderer);
 
-
-  renderButton(20, 20, 24, 24, "+", ButtonStyle::NORMAL);
-  renderButton(20 + 26, 20, 24, 24, "-", ButtonStyle::NORMAL);
-  renderButton(20 + 26*2, 20, 24, 24, "×", ButtonStyle::NORMAL);
-  renderButton(20 + 26*3, 20, 24, 24, "÷", ButtonStyle::NORMAL);
+  for (const auto& button : layout)
+  {
+    renderButton(button.x, button.y, button.w, button.h, button.label, ButtonStyle::NORMAL);
+  }
 
   SDL_RenderPresent(renderer);
 }
@@ -197,22 +253,27 @@ void MySDL::renderButton(int x, int y, int w, int h, const std::string& label, B
   constexpr int M = 6;
   constexpr int K = 4;
 
-  blit(textureUI, 0, 0, S, S, x, y); /* top left */
-  blit(textureUI, S, 0, S, S, x + w - S, y); /* top right */
-  blit(textureUI, 0, S, S, S, x, y + h - S); /* bottom left */
-  blit(textureUI, S, S, S, S, x + w - S, y + h - S); /* bottom right */
+  const int BX = style == ButtonStyle::PRESSED ? 16 : 0;
+  const int BY = 0;
 
-  blit(textureUI, M, 0, K, S, x + S, y, w - S * 2, S); /* top */
-  blit(textureUI, M, S, K, S, x + S, y + h - S, w - S * 2, S); /* bottom */
-  blit(textureUI, 0, M, S, K, x, y + S, S, h - S * 2); /* left */
-  blit(textureUI, S, M, S, K, x + w - S, y + S, S, h - S * 2); /* right */
+  blit(textureUI, BX, BY, S, S, x, y); /* top left */
+  blit(textureUI, BX + S, BY, S, S, x + w - S, y); /* top right */
+  blit(textureUI, BX, S, BY + S, S, x, y + h - S); /* bottom left */
+  blit(textureUI, BX + S, BY + S, S, S, x + w - S, y + h - S); /* bottom right */
 
-  blit(textureUI, M, M, K, K, x + S, y + S, w - S * 2, h - S * 2); /* center */
+  blit(textureUI, BX + M, BY, K, S, x + S, y, w - S * 2, S); /* top */
+  blit(textureUI, BX + M, BY + S, K, S, x + S, y + h - S, w - S * 2, S); /* bottom */
+  blit(textureUI, BX, M, BY + S, K, x, y + S, S, h - S * 2); /* left */
+  blit(textureUI, BX + S, BY + M, S, K, x + w - S, y + S, S, h - S * 2); /* right */
+
+  blit(textureUI, BX + M, BY + M, K, K, x + S, y + S, w - S * 2, h - S * 2); /* center */
 
 
   int a = FC_GetAscent(font, label.c_str());
   int lh = FC_GetLineHeight(font);
-  FC_DrawAlign(font, getRenderer(), x + w/2, y + h/2 - a + lh / 2, FC_ALIGN_CENTER, label.c_str());
+  float tx = x + w / 2 + (style == ButtonStyle::PRESSED ? 0.5 : 0);
+  float ty = y + h / 2 + (style == ButtonStyle::PRESSED ? 0.5 : 0);
+  FC_DrawAlign(font, getRenderer(), tx, ty - a + lh / 2, FC_ALIGN_CENTER, label.c_str());
 }
 
 
