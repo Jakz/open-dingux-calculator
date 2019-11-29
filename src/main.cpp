@@ -26,6 +26,7 @@ public:
   bool loadData();
 
   void handleKeyboardEvent(const SDL_Event& event, bool press);
+  void handleMouseEvent(const SDL_Event& event);
   void render();
 
   void deinit()
@@ -83,20 +84,38 @@ namespace calc
   public:
     using value_t = double;
 
-    using operator_t = std::function<value_t(value_t, value_t)>;
-    std::stack<value_t> _stack;
-    std::stack<operator_t> _operators;
-    bool _willRestartValue;
+    using binary_operator_t = std::function<value_t(value_t, value_t)>;
+    using unary_operator_t = std::function<value_t(value_t)>;
 
   private:
     value_t _value;
 
+    bool _hasMemory;
+    value_t _memory;
+
+    std::stack<value_t> _stack;
+    std::stack<binary_operator_t> _operators;
+    
+    std::string _strValue;
+    bool _willRestartValue;
+
+    enum class PointMode
+    {
+      INTEGRAL,
+      POINT,
+      AFTER_POINT
+    } _pointMode;
+
   public:
-    Calculator() : _willRestartValue(false), _value(0) { }
+    Calculator() : _willRestartValue(false), _value(0), _hasMemory(false), _memory(0) { }
 
     void set(value_t value) { _value = value; }
-
     value_t value() const { return _value; }
+
+    void point()
+    {
+      _pointMode = PointMode::POINT;
+    }
 
     void digit(int digit)
     {
@@ -104,13 +123,32 @@ namespace calc
       {
         _stack.push(_value);
         _value = digit;
+
+        if (_pointMode == PointMode::POINT)
+        {
+          _value /= 10;
+          _pointMode = PointMode::AFTER_POINT;
+        }
+
         _willRestartValue = false;
       }
       else
       {
-        _value *= 10;
-        _value += digit;
+        if (_pointMode == PointMode::INTEGRAL)
+        {
+          _value *= 10;
+          _value += digit;
+        }
+        else if (_pointMode == PointMode::POINT)
+        {
+          _value += digit / 10.0;
+        }
+        else if (_pointMode == PointMode::AFTER_POINT)
+        {
+
+        }
       }
+
     }
 
     void pushValue()
@@ -118,13 +156,18 @@ namespace calc
       _stack.push(_value);
     }
 
-    void pushOperator(operator_t op)
+    void pushOperator(binary_operator_t op)
     {
       _operators.push(op);
       _willRestartValue = true;
     }
 
-    void apply()
+    void apply(const unary_operator_t& op)
+    {
+      _value = op(_value);
+    }
+
+    void applyFromStack()
     {
       if (!_operators.empty() && !_stack.empty())
       {
@@ -134,7 +177,36 @@ namespace calc
         _stack.pop();
       }
     }
+
+    void clearStacks()
+    {
+      _stack = std::stack<value_t>();
+      _operators = std::stack<binary_operator_t>();
+    }
+
+    void clearMemory()
+    {
+      _hasMemory = false;
+      _value = 0;
+    }
+
+    void saveMemory()
+    {
+      _hasMemory = true;
+      _memory = _value;
+    }
+
+    void setMemory(value_t value)
+    {
+      _hasMemory = true;
+      _memory = value;
+    }
+
+    bool hasMemory() const { return _hasMemory; }
+    value_t memory() const { return _memory; }
   };
+
+
 }
 
 #include <functional>
@@ -249,8 +321,10 @@ namespace gfx
       _selectedPosition = { 0, 0 };
     }
 
+    void select(data_t::const_iterator it) { _selected = it; }
     bool hasSelection() const { return selected() != end(); }
     data_t::const_iterator selected() const { return _selected; }
+
     data_t::const_iterator begin() const { return _buttons.begin(); }
     data_t::const_iterator end() const { return _buttons.end(); }
 
@@ -301,7 +375,7 @@ namespace gfx
     {
       buttons.emplace_back(ButtonSpec{ "0", bx, by + 3 * bh, bw, bh, [](calc::Calculator& c) { c.digit(0); } });
       buttons.emplace_back(ButtonSpec{ "00", bx + bw, by + 3 * bh, bw, bh, [](calc::Calculator& c) { c.digit(0); c.digit(0); } });
-      buttons.emplace_back(ButtonSpec{ ".", bx + bw * 2, by + 3 * bh, bw, bh, [](calc::Calculator& c) {} });
+      buttons.emplace_back(ButtonSpec{ ".", bx + bw * 2, by + 3 * bh, bw, bh, [](calc::Calculator& c) { c.point(); } });
 
       buttons.emplace_back(ButtonSpec{ "1", bx, by + 2 * bh, bw, bh, [](calc::Calculator& c) { c.digit(1); } });
       buttons.emplace_back(ButtonSpec{ "2", bx + bw, by + 2 * bh, bw, bh, [](calc::Calculator& c) { c.digit(2); } });
@@ -323,7 +397,7 @@ namespace gfx
     {
       value_t truncated = std::trunc(value);
       if (truncated == value)
-        sprintf(dest, "%ld", (s64)value);
+        sprintf(dest, "%.0f", value);
       else
         sprintf(dest, "%f", value);
     }
@@ -341,23 +415,22 @@ namespace gfx
 
       
       std::vector<ButtonSpec> buttons;
-      buttons.push_back({ "%%", 0, 2, 2, 2, { 200, 200, 200 }, empty });
-      buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 }, empty });
-      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 }, empty });
-      buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 }, empty });
+    
+      buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.apply([](value_t v) { return std::sqrt(v); }); } });
+      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 }, [](calc::Calculator& c) { c.set(0); c.clearStacks(); } });
+      buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 }, [](calc::Calculator& c) { c.set(0); c.clearStacks(); c.clearMemory(); } });
 
-
-      buttons.push_back({ "MC", 0, 0, 2, 2, { 200, 200, 200 }, empty });
-      buttons.push_back({ "MR", 2, 0, 2, 2, { 200, 200, 200 }, empty });
-      buttons.push_back({ "M-", 4, 0, 2, 2, { 200, 200, 200 }, empty });
-      buttons.push_back({ "M+", 6, 0, 2, 2, { 200, 200, 200 }, empty });
-
+      buttons.push_back({ "MC", 0, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.clearMemory(); } });
+      buttons.push_back({ "MR", 2, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { if (c.hasMemory()) c.set(c.memory()); } });
+      buttons.push_back({ "M-", 4, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.setMemory(c.memory() - c.value()); } });
+      buttons.push_back({ "M+", 6, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.setMemory(c.memory() + c.value()); } });
+      buttons.push_back({ "MS", 0, 2, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.setMemory(c.value()); } });
 
       buttons.push_back({ "÷", 9, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 / v2; }); } });
       buttons.push_back({ "×", 11, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 * v2; }); } });
       buttons.push_back({ "-", 11, 2, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 - v2; }); } });
       buttons.push_back({ "+", 11, 4, 2, 4, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 + v2; }); } });
-      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.apply(); } });
+      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.applyFromStack(); } });
 
 
       LayoutHelper::addNumberGrid(buttons, 2, 2, 3, 2);
@@ -431,6 +504,30 @@ void MySDL::handleKeyboardEvent(const SDL_Event& event, bool press)
   }
 }
 
+void MySDL::handleMouseEvent(const SDL_Event& event)
+{
+#if MOUSE_ENABLED
+  if (event.button.type == SDL_MOUSEBUTTONDOWN)
+  {
+    for (auto it = layout.begin(); it != layout.end(); ++it)
+    {
+      const auto& button = *it;
+      SDL_Point position = { event.button.x, event.button.y };
+      if (SDL_PointInRect(&position, &button.gfx))
+      {
+        layout.select(it);
+        pressed = true;
+        button.lambda(calculator);
+      }
+    }
+  }
+  else if (event.button.type == SDL_MOUSEBUTTONUP)
+  {
+    pressed = false;
+  }
+#endif
+}
+
 void MySDL::render()
 {
   SDL_RenderClear(renderer);
@@ -446,6 +543,9 @@ void MySDL::render()
   static char buffer[512];
   layout.renderValue(buffer, 512, gfx::ValueRenderMode::DECIMAL, calculator.value());
   FC_DrawAlign(font, getRenderer(), 292, 15, FC_ALIGN_RIGHT, buffer);
+
+  if (calculator.hasMemory())
+    FC_Draw(font, getRenderer(), 20, 8, "m");
 
   SDL_RenderPresent(renderer);
 }

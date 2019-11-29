@@ -13,6 +13,8 @@ using s64 = int64_t;
 static const u32 FRAME_RATE = 60;
 static constexpr float TICKS_PER_FRAME = 1000 / (float)FRAME_RATE;
 
+#define MOUSE_ENABLED true
+
 template<typename EventHandler, typename Renderer>
 class SDL
 {
@@ -147,6 +149,12 @@ void SDL<typename EventHandler, typename Renderer>::handleEvents()
     case SDL_KEYUP:
       eventHandler.handleKeyboardEvent(event, false);
       break;
+
+#if MOUSE_ENABLED
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+        eventHandler.handleMouseEvent(event);
+#endif
     }
   }
 }
