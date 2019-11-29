@@ -395,7 +395,7 @@ namespace gfx
 
     void renderValue(char* dest, size_t length, ValueRenderMode mode, calc::Calculator::value_t value)
     {
-      value_t truncated = std::trunc(value);
+      value_t truncated = trunc(value);
       if (truncated == value)
         sprintf(dest, "%.0f", value);
       else

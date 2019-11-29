@@ -13,7 +13,11 @@ using s64 = int64_t;
 static const u32 FRAME_RATE = 60;
 static constexpr float TICKS_PER_FRAME = 1000 / (float)FRAME_RATE;
 
+#ifdef _WIN32
 #define MOUSE_ENABLED true
+#else
+#define MOUSE_ENABLED false
+#endif
 
 template<typename EventHandler, typename Renderer>
 class SDL
@@ -54,7 +58,7 @@ public:
 };
 
 template<typename EventHandler, typename Renderer>
-bool SDL<typename EventHandler, typename Renderer>::init()
+bool SDL<EventHandler, Renderer>::init()
 {
   if (SDL_Init(SDL_INIT_EVERYTHING))
   {
@@ -88,7 +92,7 @@ bool SDL<typename EventHandler, typename Renderer>::init()
 }
 
 template<typename EventHandler, typename Renderer>
-void SDL<typename EventHandler, typename Renderer>::loop()
+void SDL<EventHandler, Renderer>::loop()
 {
   while (!willQuit)
   {
@@ -100,7 +104,7 @@ void SDL<typename EventHandler, typename Renderer>::loop()
 }
 
 template<typename EventHandler, typename Renderer>
-void SDL<typename EventHandler, typename Renderer>::capFPS()
+void SDL<EventHandler, Renderer>::capFPS()
 {
   u32 ticks = SDL_GetTicks();
   u32 elapsed = ticks - SDL::ticks;
@@ -119,7 +123,7 @@ void SDL<typename EventHandler, typename Renderer>::capFPS()
 }
 
 template<typename EventHandler, typename Renderer>
-void SDL<typename EventHandler, typename Renderer>::deinit()
+void SDL<EventHandler, Renderer>::deinit()
 {
   TTF_Quit();
   IMG_Quit();
@@ -131,7 +135,7 @@ void SDL<typename EventHandler, typename Renderer>::deinit()
 }
 
 template<typename EventHandler, typename Renderer>
-void SDL<typename EventHandler, typename Renderer>::handleEvents()
+void SDL<EventHandler, Renderer>::handleEvents()
 {
   SDL_Event event;
   while (SDL_PollEvent(&event))
@@ -160,7 +164,7 @@ void SDL<typename EventHandler, typename Renderer>::handleEvents()
 }
 
 template<typename EventHandler, typename Renderer>
-inline void SDL<typename EventHandler, typename Renderer>::blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy, int dw, int dh)
+inline void SDL<EventHandler, Renderer>::blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy, int dw, int dh)
 {
   SDL_Rect from = { sx, sy, w, h };
   SDL_Rect to = { dx, dy, dw, dh };
@@ -168,21 +172,21 @@ inline void SDL<typename EventHandler, typename Renderer>::blit(SDL_Texture* tex
 }
 
 template<typename EventHandler, typename Renderer>
-inline void SDL<typename EventHandler, typename Renderer>::blit(SDL_Texture* texture, const SDL_Rect& from, int dx, int dy)
+inline void SDL<EventHandler, Renderer>::blit(SDL_Texture* texture, const SDL_Rect& from, int dx, int dy)
 {
   SDL_Rect to = { dx, dy, from.w, from.h };
   SDL_RenderCopy(renderer, texture, &from, &to);
 }
 
 template<typename EventHandler, typename Renderer>
-inline void SDL<typename EventHandler, typename Renderer>::blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy)
+inline void SDL<EventHandler, Renderer>::blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy)
 {
   blit(texture, { sx, sy, w, h }, dx, dy);
 }
 
 
 template<typename EventHandler, typename Renderer>
-inline void SDL<typename EventHandler, typename Renderer>::blit(SDL_Texture* texture, int dx, int dy)
+inline void SDL<EventHandler, Renderer>::blit(SDL_Texture* texture, int dx, int dy)
 {
   u32 dummy;
   int dummy2;
