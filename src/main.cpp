@@ -73,6 +73,9 @@ bool MySDL::loadData()
   return true;
 }
 
+#include <stack>
+#include <functional>
+
 namespace calc
 {
   class Calculator
@@ -80,24 +83,62 @@ namespace calc
   public:
     using value_t = double;
 
+    using operator_t = std::function<value_t(value_t, value_t)>;
+    std::stack<value_t> _stack;
+    std::stack<operator_t> _operators;
+    bool _willRestartValue;
+
   private:
     value_t _value;
 
   public:
+    Calculator() : _willRestartValue(false), _value(0) { }
+
     void set(value_t value) { _value = value; }
 
     value_t value() const { return _value; }
 
     void digit(int digit)
     {
-      _value *= 10;
-      _value += digit;
+      if (_willRestartValue)
+      {
+        _stack.push(_value);
+        _value = digit;
+        _willRestartValue = false;
+      }
+      else
+      {
+        _value *= 10;
+        _value += digit;
+      }
+    }
+
+    void pushValue()
+    {
+      _stack.push(_value);
+    }
+
+    void pushOperator(operator_t op)
+    {
+      _operators.push(op);
+      _willRestartValue = true;
+    }
+
+    void apply()
+    {
+      if (!_operators.empty() && !_stack.empty())
+      {
+        auto op = _operators.top();
+        _operators.pop();
+        _value = op(_stack.top(), _value);
+        _stack.pop();
+      }
     }
   };
 }
 
-#include <vector>
 #include <functional>
+#include <vector>
 
 namespace gfx
 {
@@ -312,11 +353,11 @@ namespace gfx
       buttons.push_back({ "M+", 6, 0, 2, 2, { 200, 200, 200 }, empty });
 
 
-      buttons.push_back({ "÷", 9, 0, 2, 2, { 200, 200, 200 }, empty });
-      buttons.push_back({ "×", 11, 0, 2, 2, { 200, 200, 200 }, empty });
-      buttons.push_back({ "-", 11, 2, 2, 2, { 200, 200, 200 }, empty });
-      buttons.push_back({ "+", 11, 4, 2, 4, { 200, 200, 200 }, empty });
-      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 }, empty });
+      buttons.push_back({ "÷", 9, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 / v2; }); } });
+      buttons.push_back({ "×", 11, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 * v2; }); } });
+      buttons.push_back({ "-", 11, 2, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 - v2; }); } });
+      buttons.push_back({ "+", 11, 4, 2, 4, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 + v2; }); } });
+      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.apply(); } });
 
 
       LayoutHelper::addNumberGrid(buttons, 2, 2, 3, 2);
