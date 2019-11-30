@@ -130,10 +130,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\main.cpp" />
-    <ClCompile Include="..\..\..\src\sdl_fontcache.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\sdl_fontcache.h" />
+    <ClInclude Include="..\..\..\src\label_cache.h" />
     <ClInclude Include="..\..\..\src\sdl_helper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

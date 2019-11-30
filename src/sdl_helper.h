@@ -19,6 +19,8 @@ static constexpr float TICKS_PER_FRAME = 1000 / (float)FRAME_RATE;
 #define MOUSE_ENABLED false
 #endif
 
+enum class Align { LEFT, CENTER, RIGHT };
+
 template<typename EventHandler, typename Renderer>
 class SDL
 {
@@ -54,6 +56,8 @@ public:
   void blit(SDL_Texture* texture, int sx, int sy, int w, int h, int dx, int dy, int dw, int dh);
   void blit(SDL_Texture* texture, int dx, int dy);
 
+  //void slowTextBlit(TTF_Font* font, int dx, int dy, Align align, const std::string& string);
+
   SDL_Renderer* getRenderer() { return renderer; }
 };
 
@@ -85,8 +89,6 @@ bool SDL<EventHandler, Renderer>::init()
   window = SDL_CreateWindow("ODCalc v0.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 320, 200, SDL_WINDOW_OPENGL|SDL_WINDOW_FULLSCREEN);
 #endif
   renderer = SDL_CreateRenderer(window, -1, 0);
-
-  SDL_SetRenderDrawColor(renderer, 236, 232, 228, 255);
 
   return true;
 }

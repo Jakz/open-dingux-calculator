@@ -14,15 +14,12 @@
     <ClCompile Include="..\..\..\src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\sdl_fontcache.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\sdl_helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\sdl_fontcache.h">
+    <ClInclude Include="..\..\..\src\label_cache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

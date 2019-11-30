@@ -3,7 +3,7 @@
 #include "SDL_ttf.h"
 
 #include "sdl_helper.h"
-#include "sdl_fontcache.h"
+#include "label_cache.h"
 
 #include <algorithm>
 #include <unordered_map>
@@ -17,8 +17,9 @@ struct ButtonStyle
 class MySDL : public SDL<MySDL, MySDL>
 {
 private:
+  LabelCache cache;
   SDL_Texture* textureUI;
-  FC_Font* font;
+  TTF_Font* font;
 
 public:
   MySDL() : SDL(*this, *this), textureUI(nullptr), font(nullptr) { }
@@ -29,12 +30,7 @@ public:
   void handleMouseEvent(const SDL_Event& event);
   void render();
 
-  void deinit()
-  {
-    FC_FreeFont(font);
-    SDL_DestroyTexture(textureUI);
-    SDL::deinit();
-  }
+  void deinit();
 
   void renderButton(int x, int y, int w, int h, const std::string& label, SDL_Color color, ButtonStyle style);
   void renderButtonBackground(int x, int y, int w, int h, int bx, int by);
@@ -47,7 +43,12 @@ public:
 #endif
 
 
-#include "sdl_fontcache.h"
+void MySDL::deinit()
+{
+  TTF_CloseFont(font);
+  SDL_DestroyTexture(textureUI);
+  SDL::deinit();
+}
 
 bool MySDL::loadData()
 {
@@ -62,8 +63,8 @@ bool MySDL::loadData()
   textureUI = SDL_CreateTextureFromSurface(renderer, surfaceUI);
   SDL_FreeSurface(surfaceUI);
 
-  font = FC_CreateFont();
-  FC_LoadFont(font, getRenderer(), PREFIX "data/FreeSans.ttf", 16, FC_MakeColor(0, 0, 0, 255), TTF_STYLE_NORMAL);
+  font = TTF_OpenFont(PREFIX "data/FreeSans.ttf", 16);
+  cache.init(font, getRenderer(), 128, 128);
 
   if (!font)
   {
@@ -417,7 +418,9 @@ namespace gfx
       std::vector<ButtonSpec> buttons;
     
       buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.apply([](value_t v) { return std::sqrt(v); }); } });
-      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 }, [](calc::Calculator& c) { c.set(0); c.clearStacks(); } });
+      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 }, [](calc::Calculator& c) { 
+        c.set(0); c.clearStacks(); 
+      } });
       buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 }, [](calc::Calculator& c) { c.set(0); c.clearStacks(); c.clearMemory(); } });
 
       buttons.push_back({ "MC", 0, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.clearMemory(); } });
@@ -528,8 +531,10 @@ void MySDL::handleMouseEvent(const SDL_Event& event)
 #endif
 }
 
+
 void MySDL::render()
 {
+  SDL_SetRenderDrawColor(renderer, 236, 232, 228, 255);
   SDL_RenderClear(renderer);
 
   for (auto it = layout.begin(); it != layout.end(); ++it)
@@ -540,12 +545,15 @@ void MySDL::render()
 
   renderButtonBackground(18, 10, 284, 30, 0, 0);
 
+  static constexpr u32 VALUE_LABEL_KEY = 123;
   static char buffer[512];
   layout.renderValue(buffer, 512, gfx::ValueRenderMode::DECIMAL, calculator.value());
-  FC_DrawAlign(font, getRenderer(), 292, 15, FC_ALIGN_RIGHT, buffer);
+  auto texture = cache.get(buffer, VALUE_LABEL_KEY);
+  SDL_Rect dest = { 288 - texture->second.rect.w, 15, texture->second.rect.w, texture->second.rect.h };
+  SDL_RenderCopy(getRenderer(), texture->second.texture, nullptr, &dest);
 
   if (calculator.hasMemory())
-    FC_Draw(font, getRenderer(), 20, 8, "m");
+    blit(cache.texture(), cache.get("m")->second, 20, 8);
 
   SDL_RenderPresent(renderer);
 }
@@ -590,11 +598,14 @@ void MySDL::renderButton(int x, int y, int w, int h, const std::string& label, S
     renderButtonBackground(x, y, w, h, 0, 16);
   }
 
-  int a = FC_GetAscent(font, label.c_str());
+  const SDL_Rect& rect = cache.get(label)->second;
+  this->blit(cache.texture(), rect, x + w / 2 - rect.w/2, y + h / 2 - rect.h/2);
+
+  /*int a = FC_GetAscent(font, label.c_str());
   int lh = FC_GetLineHeight(font);
   float tx = x + w / 2 + (style.pressed ? 0.5 : 0);
   float ty = y + h / 2 + (style.pressed ? 0.5 : 0);
-  FC_DrawAlign(font, getRenderer(), tx, ty - a + lh / 2, FC_ALIGN_CENTER, label.c_str());
+  FC_DrawAlign(font, getRenderer(), tx, ty - a + lh / 2, FC_ALIGN_CENTER, label.c_str());*/
 }
 
 
