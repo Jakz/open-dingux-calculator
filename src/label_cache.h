@@ -8,6 +8,7 @@
 
 using u32 = uint32_t;
 
+template<bool USE_SURFACE>
 class LabelCache
 {
 public:
@@ -24,6 +25,7 @@ private:
 
   TTF_Font* _font;
   SDL_Texture* _texture;
+  SDL_Surface* _surface;
   SDL_Renderer* _renderer;
   map_t _cache;
   standalone_map_t _standaloneCache;
@@ -55,21 +57,34 @@ private:
 
     _currentX += surface->w;
 
-    u32 format;
-    int access, w, h;
-    SDL_QueryTexture(_texture, &format, &access, &w, &h);
-    assert(surface->format->format == format);
+    if (USE_SURFACE)
+    {
+      SDL_BlitSurface(surface, nullptr, _surface, &pair.first);
 
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
+      if (_texture)
+        SDL_DestroyTexture(_texture);
 
-    SDL_Rect src = { 0, 0, surface->w, surface->h };
-    const SDL_Rect& dest = pair.first->second;
+      _texture = SDL_CreateTextureFromSurface(_renderer, _surface);
+    }
+    else
+    {
+      u32 format;
+      int access, w, h;
+      SDL_QueryTexture(_texture, &format, &access, &w, &h);
+      assert(surface->format->format == format);
 
-    SDL_SetRenderTarget(_renderer, _texture);
-    SDL_RenderCopy(_renderer, texture, &src, &dest);
-    SDL_SetRenderTarget(_renderer, nullptr);
+      SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
 
-    SDL_DestroyTexture(texture);
+      SDL_Rect src = { 0, 0, surface->w, surface->h };
+      const SDL_Rect& dest = pair.first->second;
+
+      SDL_SetRenderTarget(_renderer, _texture);
+      SDL_RenderCopy(_renderer, texture, &src, &dest);
+      SDL_SetRenderTarget(_renderer, nullptr);
+
+      SDL_DestroyTexture(texture);
+    }
+
     SDL_FreeSurface(surface);
       
     return pair.first;
@@ -106,18 +121,26 @@ public:
 
 
     _renderer = renderer;
-    _texture = SDL_CreateTexture(renderer, info.texture_formats[0], SDL_TEXTUREACCESS_TARGET, w, h);
-    SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_BLEND);
 
-    SDL_SetRenderTarget(_renderer, _texture);
-    SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 0);
-    SDL_RenderClear(_renderer);
-    SDL_SetRenderTarget(_renderer, nullptr);
+    if (USE_SURFACE)
+    {
+      _surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
+      SDL_FillRect(_surface, nullptr, 0);
+    }
+    else
+    {
+      _texture = SDL_CreateTexture(renderer, info.texture_formats[0], SDL_TEXTUREACCESS_TARGET, w, h);
+      SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderTarget(_renderer, _texture);
+      SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 0);
+      SDL_RenderClear(_renderer);
+      SDL_SetRenderTarget(_renderer, nullptr);
+    }
   }
 
-  standalone_map_t::const_iterator get(const std::string& text, standalone_key_t key)
+  typename standalone_map_t::const_iterator get(const std::string& text, standalone_key_t key)
   {
-    standalone_map_t::iterator it = _standaloneCache.find(key);
+    typename standalone_map_t::iterator it = _standaloneCache.find(key);
 
     if (it == _standaloneCache.end())
     {
@@ -151,5 +174,8 @@ public:
   ~LabelCache()
   {
     SDL_DestroyTexture(_texture);
+
+    if (USE_SURFACE)
+      SDL_FreeSurface(_surface);
   }
 };

@@ -17,7 +17,7 @@ struct ButtonStyle
 class MySDL : public SDL<MySDL, MySDL>
 {
 private:
-  LabelCache cache;
+  LabelCache<true> cache;
   SDL_Texture* textureUI;
   TTF_Font* font;
 
@@ -410,7 +410,7 @@ namespace gfx
   private:
     static constexpr int BS = 2;
   public:
-    EasyLayout() : Layout(18, 48, 20, 12, 2)
+    EasyLayout() : Layout(18, 70, 20, 14, 2)
     { 
       Button::lambda_t empty = [](calc::Calculator&) {};
 
@@ -543,17 +543,17 @@ void MySDL::render()
     renderButton(button.gfx.x, button.gfx.y, button.gfx.w, button.gfx.h, button.label, button.color, { pressed && it == layout.selected(), it == layout.selected() });
   }
 
-  renderButtonBackground(18, 10, 284, 30, 0, 0);
+  renderButtonBackground(18, 20, 284, 30, 0, 0);
 
   static constexpr u32 VALUE_LABEL_KEY = 123;
   static char buffer[512];
   layout.renderValue(buffer, 512, gfx::ValueRenderMode::DECIMAL, calculator.value());
   auto texture = cache.get(buffer, VALUE_LABEL_KEY);
-  SDL_Rect dest = { 288 - texture->second.rect.w, 15, texture->second.rect.w, texture->second.rect.h };
+  SDL_Rect dest = { 288 - texture->second.rect.w, 25, texture->second.rect.w, texture->second.rect.h };
   SDL_RenderCopy(getRenderer(), texture->second.texture, nullptr, &dest);
 
   if (calculator.hasMemory())
-    blit(cache.texture(), cache.get("m")->second, 20, 8);
+    blit(cache.texture(), cache.get("m")->second, 20, 18);
 
   SDL_RenderPresent(renderer);
 }
@@ -599,7 +599,7 @@ void MySDL::renderButton(int x, int y, int w, int h, const std::string& label, S
   }
 
   const SDL_Rect& rect = cache.get(label)->second;
-  this->blit(cache.texture(), rect, x + w / 2 - rect.w/2, y + h / 2 - rect.h/2);
+  blit(cache.texture(), rect, x + w / 2 - rect.w/2 + (style.pressed ? 1 : 0), y + h / 2 - rect.h/2 + (style.pressed ? 1 : 0));
 
   /*int a = FC_GetAscent(font, label.c_str());
   int lh = FC_GetLineHeight(font);
