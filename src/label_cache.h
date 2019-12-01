@@ -59,7 +59,7 @@ private:
 
     if (USE_SURFACE)
     {
-      SDL_BlitSurface(surface, nullptr, _surface, &pair.first);
+      SDL_BlitSurface(surface, nullptr, _surface, &pair.first->second);
 
       if (_texture)
         SDL_DestroyTexture(_texture);
