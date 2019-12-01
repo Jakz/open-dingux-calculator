@@ -130,10 +130,22 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\main.cpp" />
+    <ClCompile Include="..\..\..\src\precision\precisioncore.cpp" />
+    <ClCompile Include="..\..\..\src\views\view_manager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\src\calculator.h" />
+    <ClInclude Include="..\..\..\src\common.h" />
     <ClInclude Include="..\..\..\src\label_cache.h" />
+    <ClInclude Include="..\..\..\src\precision\complexprecision.h" />
+    <ClInclude Include="..\..\..\src\precision\fprecision.h" />
+    <ClInclude Include="..\..\..\src\precision\fractionprecision.h" />
+    <ClInclude Include="..\..\..\src\precision\intervalprecision.h" />
+    <ClInclude Include="..\..\..\src\precision\iprecision.h" />
     <ClInclude Include="..\..\..\src\sdl_helper.h" />
+    <ClInclude Include="..\..\..\src\views\calculator_layout.h" />
+    <ClInclude Include="..\..\..\src\views\calculator_view.h" />
+    <ClInclude Include="..\..\..\src\views\view_manager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

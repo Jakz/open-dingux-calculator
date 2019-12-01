@@ -1,26 +1,63 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    <Filter Include="src">
+      <UniqueIdentifier>{3f009d6b-1e09-4eeb-a437-a4a81b3ab9f9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    <Filter Include="src\precision">
+      <UniqueIdentifier>{9830d60a-24b3-4df8-a65c-7021cf8a6e12}</UniqueIdentifier>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\src\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+    <Filter Include="src\views">
+      <UniqueIdentifier>{74f31dff-cbd0-4f17-a768-8a9808121630}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\sdl_helper.h">
-      <Filter>Header Files</Filter>
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\calculator.h">
+      <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\label_cache.h">
-      <Filter>Header Files</Filter>
+      <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\precision\fractionprecision.h">
+      <Filter>src\precision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\precision\intervalprecision.h">
+      <Filter>src\precision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\precision\iprecision.h">
+      <Filter>src\precision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\precision\complexprecision.h">
+      <Filter>src\precision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\precision\fprecision.h">
+      <Filter>src\precision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\views\view_manager.h">
+      <Filter>src\views</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\common.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\views\calculator_view.h">
+      <Filter>src\views</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\views\calculator_layout.h">
+      <Filter>src\views</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\precision\precisioncore.cpp">
+      <Filter>src\precision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\views\view_manager.cpp">
+      <Filter>src\views</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

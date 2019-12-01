@@ -240,7 +240,7 @@ std::string _int_precision_uand( std::string *, std::string *);
 int _int_precision_compare( std::string *, std::string * );
 void _int_precision_strip_leading_zeros( std::string * );
 std::string _int_precision_itoa( const std::string * );
-std::string _int_precision_itoa( int_precision * );
+std::string _int_precision_itoa( const int_precision * );
 std::string _int_precision_atoi( const char *str, int *sign );
 std::string _int_precision_atoi(const std::string &s, int *sign);
 std::string itostring( int, const unsigned );
@@ -291,6 +291,7 @@ class int_precision
       // Coordinate functions
 	  std::string copy(size_t pos = 0, size_t len = std::string::npos) const {return mNumber.substr(pos,len); }  // Same as the string.substr()
       std::string *pointer()		{ return &mNumber; }
+      const std::string* pointer() const { return &mNumber; }
       int sign() const				{ return mSign; }
       int change_sign()				{ mSign *= -1;  return mSign; }		// Toggle and return sign 
       unsigned int size() const		{ return mNumber.length(); }		// Return number of digits
@@ -299,7 +300,7 @@ class int_precision
 	  int_precision& abs()			{ mSign = 1; return *this; }		// Change sign to + and return number
 
 	  // Conversion methods. Safer and less ambiguous than overloading implicit/explicit conversion operators
-      std::string toString()	 { return _int_precision_itoa(this); }
+      std::string toString() const { return _int_precision_itoa(this); }
 
 	  // Implicit/explicit conversion operators
 	  operator long() const;

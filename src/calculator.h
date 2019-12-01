@@ -1,3 +1,5 @@
+#pragma once
+
 #include <algorithm>
 #include <unordered_map>
 
@@ -21,11 +23,52 @@ namespace calc
 
     enum class Mode { INT, FLOAT } mode;
 
+    Value(int i) : i(i), mode(Mode::INT) { }
+    Value(int_precision i) : i(i), mode(Mode::INT) { }
+    Value(double d) : f(f), mode(Mode::FLOAT) { }
+    Value(float_precision f) : f(f), mode(Mode::FLOAT) { }
+
+    Value(const Value& other) : mode(other.mode)
+    {
+      if (mode == Mode::INT)
+        i = other.i;
+      else if (mode == Mode::FLOAT)
+        f = other.f;
+    }
+
+    Value(Value&& other) : mode(std::move(other.mode))
+    {
+      if (mode == Mode::INT)
+        i = std::move(other.i);
+      else if (mode == Mode::FLOAT)
+        f = std::move(other.f);
+    }
+
+    ~Value()
+    {
+      if (mode == Mode::INT)
+        i.~int_precision();
+      else if (mode == Mode::FLOAT)
+        f.~float_precision();
+    }
+    
+    Value& operator=(const Value& other)
+    {
+      mode = other.mode;
+
+      if (mode == Mode::INT)
+        i = other.i;
+      else if (mode == Mode::FLOAT)
+        f = other.f;
+
+      return *this;
+    }
+
     void toFloat()
     { 
       if (mode == Mode::INT)
       {
-        f = float_precision(i.toString(), i.size()*2);
+        f = float_precision(i.toString(), MAX_PRECISION /*i.size()*2*/);
       }
     }
 
@@ -37,12 +80,82 @@ namespace calc
         mode = Mode::INT;
       }
     }
+
+    Value operator+(const Value& other) const
+    {
+      assert(mode == other.mode);
+      if (mode == Mode::INT) return Value(i + other.i);
+      else if (mode == Mode::FLOAT) return Value(f + other.f);
+    }
+
+    Value operator-(const Value& other) const
+    {
+      assert(mode == other.mode);
+      if (mode == Mode::INT) return Value(i - other.i);
+      else if (mode == Mode::FLOAT) return Value(f - other.f);
+    }
+
+    Value operator*(const Value& other) const
+    {
+      assert(mode == other.mode);
+      if (mode == Mode::INT) return Value(i * other.i);
+      else if (mode == Mode::FLOAT) return Value(f * other.f);
+    }
+
+    Value operator/(const Value& other) const
+    {
+      assert(mode == other.mode);
+      if (mode == Mode::INT) return Value(i / other.i);
+      else if (mode == Mode::FLOAT) return Value(f / other.f);
+    }
+
+    Value& operator+=(const Value& other)
+    {
+      assert(mode == other.mode);
+      *this = *this + other;
+      return *this;
+    }
+
+    Value& operator-=(const Value& other)
+    {
+      assert(mode == other.mode);
+      *this = *this - other;
+      return *this;
+    }
+
+    Value& operator*=(const Value& other)
+    {
+      assert(mode == other.mode);
+      *this = *this * other;
+      return *this;
+    }
+
+    Value& operator/=(const Value& other)
+    {
+      assert(mode == other.mode);
+      *this = *this / other;
+      return *this;
+    }
+
+    Value sqrt() const
+    {
+      assert(mode == Mode::FLOAT);
+      return Value(::sqrt(f));
+    }
+
+
+    std::string toString() const
+    {
+      if (mode == Mode::INT) return i.toString();
+      else if (mode == Mode::FLOAT) return f.toString();
+    }
+
   };
   
   class Calculator
   {
   public:
-    using value_t = double;
+    using value_t = Value;
 
     using binary_operator_t = std::function<value_t(value_t, value_t)>;
     using unary_operator_t = std::function<value_t(value_t)>;
@@ -67,10 +180,10 @@ namespace calc
     } _pointMode;
 
   public:
-    Calculator() : _willRestartValue(false), _value(0), _hasMemory(false), _memory(0) { }
+    Calculator() : _willRestartValue(false), _value(0.0f), _hasMemory(false), _memory(0) { }
 
     void set(value_t value) { _value = value; }
-    value_t value() const { return _value; }
+    const value_t& value() const { return _value; }
 
     void point()
     {
@@ -166,3 +279,5 @@ namespace calc
     value_t memory() const { return _memory; }
   };
 }
+
+calc::Value sqrt(const calc::Value& value) { return value.sqrt(); }

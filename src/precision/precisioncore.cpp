@@ -185,7 +185,7 @@ std::istream& operator>>( std::istream& strm, int_precision& d )
 ///   Convert int_precsion to ascii string
 ///   Based on RADIX conversion from RADIX to BASE_10. Sign is only added if negative
 //
-std::string _int_precision_itoa( int_precision *a )
+std::string _int_precision_itoa(const int_precision *a )
    {
    return ( a->sign() < 0 ? "-": "" ) + _int_precision_itoa( a->pointer() );
    }

@@ -1,3 +1,7 @@
+#pragma once
+
+#include "common.h"
+
 #include "SDL.h"
 #include "SDL_image.h"
 #include "SDL_ttf.h"
@@ -5,10 +9,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cassert>
-
-using u32 = uint32_t;
-using u16 = uint16_t;
-using s64 = int64_t;
 
 static const u32 FRAME_RATE = 60;
 static constexpr float TICKS_PER_FRAME = 1000 / (float)FRAME_RATE;
