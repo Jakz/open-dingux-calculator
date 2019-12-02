@@ -208,7 +208,7 @@ namespace ui
     const int HEIGHT = 240;
     
     const graph::bounds_t horizontalBounds = { -5.0, 5.0f };
-    const graph::bounds_t verticalBounds = { -2.0f, 2.0f };
+    const graph::bounds_t verticalBounds = { -1.0f, 10.0f };
 
     graph::function vertical = graph::coordinate_mapper_builder().vertical(verticalBounds.min, verticalBounds.max);
     graph::function horizontal = graph::coordinate_mapper_builder().horizontal(horizontalBounds.min, horizontalBounds.max);
@@ -247,6 +247,51 @@ namespace ui
     for (int x = 0; x < WIDTH; ++x)
       for (int y = 0; y < HEIGHT; ++y)
       {
+        int r = 0, g = 0, b = 0, a = 0;
+        for (int dx = -2; dx <= 2; ++dx)
+          for (int dy = -2; dy <= 2; ++dy)
+          {
+            if (dx != 0 || dy != 0)
+            {
+              int fx = x + dx, fy = y + dy;
+              if (fx > 0 && fx < WIDTH && fy > 0 && fy < HEIGHT)
+              {
+                int distance = std::abs(dx) + std::abs(dy);
+                float coefficient = 1.0f;
+                switch (distance) {
+                case 1: coefficient = 0.20f; break;
+                case 2: coefficient = 0.08f; break;
+                case 3: coefficient = 0.03f; break;
+                case 4: coefficient = 0.01f; break;
+                default: assert(false);
+                };
+
+                const u32 color = AT(canvas, fx, fy);
+                r += ((color & 0x00ff0000) >> 16) * coefficient;
+                g += (color & 0x0000ff00) >> 8;
+                b += color & 0x000000ff;
+                a += ((color & 0xff000000) >> 24) * coefficient;
+              }
+            }
+          }
+
+        if (r + g + b + a)
+          AT(aaCanvas, x, y) = SDL_MapRGBA(aaCanvas->format, 255, 0, 0, a);
+      }
+     
+    for (int x = 0; x < WIDTH; ++x)
+      for (int y = 0; y < HEIGHT; ++y)
+      {
+        if (AT(canvas, x, y) == 0x00000000 && AT(aaCanvas, x, y) != 0)
+          AT(canvas, x, y) += AT(aaCanvas, x, y);
+      }
+
+
+    /*
+
+    for (int x = 0; x < WIDTH; ++x)
+      for (int y = 0; y < HEIGHT; ++y)
+      {
         if (AT(aaCanvas, x, y) == 0x00000000)
         {
           int count = 0;
@@ -280,6 +325,8 @@ namespace ui
           AT(canvas, x, y) = AT(aaCanvas, x, y);
       }
 
+      */
+
     texture = SDL_CreateTextureFromSurface(manager->getRenderer(), canvas);
   }
 
@@ -288,7 +335,7 @@ namespace ui
     auto* renderer = manager->getRenderer();
 
     if (!canvas)
-      renderFunction([](float x) { return std::sin(x); });
+      renderFunction([](float x) { return x*x; });
    
     
     SDL_SetRenderDrawColor(renderer, 255, 250, 237, 255);
