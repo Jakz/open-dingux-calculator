@@ -145,6 +145,7 @@
     <ClInclude Include="..\..\..\src\sdl_helper.h" />
     <ClInclude Include="..\..\..\src\views\calculator_layout.h" />
     <ClInclude Include="..\..\..\src\views\calculator_view.h" />
+    <ClInclude Include="..\..\..\src\views\graph_view.h" />
     <ClInclude Include="..\..\..\src\views\view_manager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

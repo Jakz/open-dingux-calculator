@@ -1,6 +1,7 @@
 #include "view_manager.h"
 
 #include "calculator_view.h"
+#include "graph_view.h"
 
 #ifdef _WIN32
 #define PREFIX  "../../../"
@@ -11,7 +12,8 @@
 ui::ViewManager::ViewManager() : SDL<ui::ViewManager, ui::ViewManager>(*this, *this), textureUI(nullptr), font(nullptr)
 {
   views[0] = new CalculatorView(this);
-  view = views[0];
+  views[1] = new GraphView(this);
+  view = views[1];
 }
 
 void ui::ViewManager::deinit()

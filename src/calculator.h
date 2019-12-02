@@ -81,58 +81,60 @@ namespace calc
       }
     }
 
-    Value operator+(const Value& other) const
+    bool isInt() const { return mode == Mode::INT; }
+
+    Value operator+(Value other) const
     {
-      assert(mode == other.mode);
+      if (other.isInt() && !isInt()) other.toFloat();
       if (mode == Mode::INT) return Value(i + other.i);
       else if (mode == Mode::FLOAT) return Value(f + other.f);
     }
 
-    Value operator-(const Value& other) const
+    Value operator-(Value other) const
     {
-      assert(mode == other.mode);
+      if (other.isInt() && !isInt()) other.toFloat();
       if (mode == Mode::INT) return Value(i - other.i);
       else if (mode == Mode::FLOAT) return Value(f - other.f);
     }
 
-    Value operator*(const Value& other) const
+    Value operator*(Value other) const
     {
-      assert(mode == other.mode);
+      if (other.isInt() && !isInt()) other.toFloat();
       if (mode == Mode::INT) return Value(i * other.i);
       else if (mode == Mode::FLOAT) return Value(f * other.f);
     }
 
-    Value operator/(const Value& other) const
+    Value operator/(Value other) const
     {
-      assert(mode == other.mode);
+      if (other.isInt() && !isInt()) other.toFloat();
       if (mode == Mode::INT) return Value(i / other.i);
       else if (mode == Mode::FLOAT) return Value(f / other.f);
     }
 
-    Value& operator+=(const Value& other)
+    Value& operator+=(Value other)
     {
-      assert(mode == other.mode);
+      if (other.isInt() && !isInt()) other.toFloat();
       *this = *this + other;
       return *this;
     }
 
-    Value& operator-=(const Value& other)
+    Value& operator-=(Value other)
     {
-      assert(mode == other.mode);
+      if (other.isInt() && !isInt()) other.toFloat();
       *this = *this - other;
       return *this;
     }
 
-    Value& operator*=(const Value& other)
+    Value& operator*=(Value other)
     {
-      assert(mode == other.mode);
+      if (other.isInt() && !isInt()) other.toFloat();
       *this = *this * other;
       return *this;
     }
 
-    Value& operator/=(const Value& other)
+    Value& operator/=(Value other)
     {
-      assert(mode == other.mode);
+      if (other.isInt() && !isInt()) other.toFloat();
       *this = *this / other;
       return *this;
     }
@@ -142,7 +144,6 @@ namespace calc
       assert(mode == Mode::FLOAT);
       return Value(::sqrt(f));
     }
-
 
     std::string toString() const
     {
@@ -195,6 +196,7 @@ namespace calc
       if (_willRestartValue)
       {
         _stack.push(_value);
+
         _value = digit;
 
         if (_pointMode == PointMode::POINT)
@@ -209,8 +211,16 @@ namespace calc
       {
         if (_pointMode == PointMode::INTEGRAL)
         {
-          _value *= 10;
-          _value += digit;
+          if (_value.isInt())
+          {
+            _value *= 10;
+            _value += digit;
+          }
+          else
+          {
+            _value *= 10.0;
+            _value += (float)digit;
+          }
         }
         else if (_pointMode == PointMode::POINT)
         {
