@@ -7,10 +7,13 @@ CXXFLAGS+= $(shell $(SYSROOT)/usr/bin/sdl2-config --cflags)
 LDFLAGS+= $(shell $(SYSROOT)/usr/bin/sdl2-config --libs)
 LDFLAGS+= -lSDL2_image -lSDL2_ttf
 
-DISABLED_WARNINGS += -Wno-unused-parameter -Wno-missing-field-initializers
-CXXFLAGS+= -W -Wall -Wextra -O2 -std=c++0x $(DISABLED_WARNINGS) -I../../src
+DISABLED_WARNINGS += -Wno-unused-parameter -Wno-missing-field-initializers -Wno-sign-compare -Wno-parentheses -Wno-unused-variable -Wno-reorder
+CXXFLAGS+= -g -W -Wall -Wextra -std=c++0x $(DISABLED_WARNINGS) -I../../src
+# -O2
 
 SOURCES:= $(wildcard ../../src/*.cpp)
+SOURCES += $(wildcard ../../src/precision/*.cpp)
+SOURCES += $(wildcard ../../src/views/*.cpp)
 BINARIES:= $(foreach source, $(SOURCES), $(source:%.cpp=%.o) )
 EXECUTABLE:= ./odcalc
 

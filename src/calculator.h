@@ -23,6 +23,7 @@ namespace calc
 
     enum class Mode { INT, FLOAT } mode;
 
+    Value() : Value(0.0f) { }
     Value(int i) : i(i), mode(Mode::INT) { }
     Value(int_precision i) : i(i), mode(Mode::INT) { }
     Value(double d) : f(f), mode(Mode::FLOAT) { }
@@ -88,6 +89,7 @@ namespace calc
       if (other.isInt() && !isInt()) other.toFloat();
       if (mode == Mode::INT) return Value(i + other.i);
       else if (mode == Mode::FLOAT) return Value(f + other.f);
+      return Value();
     }
 
     Value operator-(Value other) const
@@ -95,6 +97,7 @@ namespace calc
       if (other.isInt() && !isInt()) other.toFloat();
       if (mode == Mode::INT) return Value(i - other.i);
       else if (mode == Mode::FLOAT) return Value(f - other.f);
+      return Value();
     }
 
     Value operator*(Value other) const
@@ -102,6 +105,7 @@ namespace calc
       if (other.isInt() && !isInt()) other.toFloat();
       if (mode == Mode::INT) return Value(i * other.i);
       else if (mode == Mode::FLOAT) return Value(f * other.f);
+      return Value();
     }
 
     Value operator/(Value other) const
@@ -109,6 +113,7 @@ namespace calc
       if (other.isInt() && !isInt()) other.toFloat();
       if (mode == Mode::INT) return Value(i / other.i);
       else if (mode == Mode::FLOAT) return Value(f / other.f);
+      return Value();
     }
 
     Value& operator+=(Value other)
@@ -149,6 +154,7 @@ namespace calc
     {
       if (mode == Mode::INT) return i.toString();
       else if (mode == Mode::FLOAT) return f.toString();
+      return std::string();
     }
 
   };

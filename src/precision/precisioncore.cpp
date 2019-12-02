@@ -859,13 +859,17 @@ string _int_precision_karatsuba_umul(const std::string *lhs, const std::string *
 	// Evaluation
 	z0 = _int_precision_karatsuba_umul(&lhs0, &rhs0);
 	z1 = _int_precision_karatsuba_umul(&lhs1, &rhs1);
-	z2 = _int_precision_karatsuba_umul(&_int_precision_uadd(&lhs0, &lhs1), &_int_precision_uadd(&rhs0, &rhs1));
-	z3 = _int_precision_usub(&wrap, &z2, &_int_precision_uadd(&z0, &z1));
+	auto t0 = _int_precision_uadd(&lhs0, &lhs1);
+	auto t1 = _int_precision_uadd(&rhs0, &rhs1);
+	auto t2 = _int_precision_uadd(&z0, &z1);
+	z2 = _int_precision_karatsuba_umul(&t0, &t1);
+	z3 = _int_precision_usub(&wrap, &z2, &t2);
 
 	// Recomposition
 	z0.append(2 * (length - half_length), ICHARACTER(0));
 	z3.append(length - half_length, ICHARACTER(0));
-	result = _int_precision_uadd(&_int_precision_uadd(&z0, &z1), &z3);
+  auto t3 = _int_precision_uadd(&z0, &z1);
+	result = _int_precision_uadd(&t3, &z3);
 	return result;
 	}
 
@@ -3073,16 +3077,16 @@ int _float_precision_normalize( std::string *m )
 ///   Note that the mantissa number has ALWAYS been normalize prior to rounding
 ///   The mantissa NEVER contain a leading sign
 ///   Rounding Mode Positive numnber   Result    
-///   Rounding to nearest              +·   
+///   Rounding to nearest              +Â·   
 ///   Rounding toward zero (Truncate)  Maximum, positive finite value   
-///   Rounding up (toward +·)          +·   
-///   Rounding down) (toward -·)       Maximum, positive finite value   
+///   Rounding up (toward +Â·)          +Â·   
+///   Rounding down) (toward -Â·)       Maximum, positive finite value   
 ///
 ///   Rounding Mode Negative number    Result    
-///   Rounding to nearest              -·   
+///   Rounding to nearest              -Â·   
 ///   Rounding toward zero (Truncate)  Maximum, negative finite value   
-///   Rounding up (toward +·)          Maximum, negative finite value   
-///   Rounding down) (toward -·)       -·   
+///   Rounding up (toward +Â·)          Maximum, negative finite value   
+///   Rounding down) (toward -Â·)       -Â·   
 //
 int _float_precision_rounding( std::string *m, int sign, unsigned int precision, enum round_mode mode )
    {

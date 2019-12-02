@@ -126,7 +126,7 @@ public:
 
     if (USE_SURFACE)
     {
-      _surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
+      _surface = SDL_CreateRGBSurface(0, w, h, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
       SDL_FillRect(_surface, nullptr, 0);
     }
     else
