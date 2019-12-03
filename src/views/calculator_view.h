@@ -41,8 +41,6 @@ namespace ui
 
       if (calculator.hasMemory())
         gvm->blit(gvm->cache()->texture(), gvm->cache()->get("m")->second, 20, 18);
-
-      SDL_RenderPresent(renderer);
     }
 
     void handleKeyboardEvent(const SDL_Event& event) override

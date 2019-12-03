@@ -142,6 +142,7 @@
     <ClInclude Include="..\..\..\src\precision\fractionprecision.h" />
     <ClInclude Include="..\..\..\src\precision\intervalprecision.h" />
     <ClInclude Include="..\..\..\src\precision\iprecision.h" />
+    <ClInclude Include="..\..\..\src\samplers\FunctionSampler1D.h" />
     <ClInclude Include="..\..\..\src\sdl_helper.h" />
     <ClInclude Include="..\..\..\src\views\calculator_layout.h" />
     <ClInclude Include="..\..\..\src\views\calculator_view.h" />

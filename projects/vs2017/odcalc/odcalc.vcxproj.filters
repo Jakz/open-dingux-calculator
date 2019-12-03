@@ -10,6 +10,9 @@
     <Filter Include="src\views">
       <UniqueIdentifier>{74f31dff-cbd0-4f17-a768-8a9808121630}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\samplers">
+      <UniqueIdentifier>{8a67e9f8-03c4-4d69-bbbc-6e138b146cb0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\sdl_helper.h">
@@ -50,6 +53,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\src\views\graph_view.h">
       <Filter>src\views</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\samplers\FunctionSampler1D.h">
+      <Filter>src\samplers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

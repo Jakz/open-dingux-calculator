@@ -13,12 +13,6 @@
 static const u32 FRAME_RATE = 60;
 static constexpr float TICKS_PER_FRAME = 1000 / (float)FRAME_RATE;
 
-#ifdef _WIN32
-#define MOUSE_ENABLED true
-#else
-#define MOUSE_ENABLED false
-#endif
-
 enum class Align { LEFT, CENTER, RIGHT };
 
 template<typename EventHandler, typename Renderer>
@@ -30,6 +24,10 @@ protected:
 
   SDL_Window* window;
   SDL_Renderer* renderer;
+
+#if defined(WINDOW_SCALE)
+  SDL_Texture* buffer;
+#endif
 
   bool willQuit;
   u32 ticks;
@@ -83,12 +81,16 @@ bool SDL<EventHandler, Renderer>::init()
   }
   
   // SDL_WINDOW_FULLSCREEN
-#if _WIN32
-  window = SDL_CreateWindow("ODCalc v0.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 320, 240, SDL_WINDOW_OPENGL);
+#if defined(WINDOW_SCALE)
+  window = SDL_CreateWindow("ODCalc v0.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 320 * WINDOW_SCALE, 240 * WINDOW_SCALE, SDL_WINDOW_OPENGL);
 #else
-  window = SDL_CreateWindow("ODCalc v0.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 320, 240, SDL_WINDOW_OPENGL|SDL_WINDOW_FULLSCREEN);
+  window = SDL_CreateWindow("ODCalc v0.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 320, 240, SDL_WINDOW_OPENGL);
 #endif
   renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+#if defined(WINDOW_SCALE)
+  buffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 320, 240);
+#endif
 
   return true;
 }
@@ -98,7 +100,17 @@ void SDL<EventHandler, Renderer>::loop()
 {
   while (!willQuit)
   {
+#if false && defined(WINDOW_SCALE)
+    SDL_SetRenderTarget(renderer, buffer);
     loopRenderer.render();
+    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_RenderCopy(renderer, buffer, nullptr, nullptr);
+    SDL_RenderPresent(renderer);
+#else
+    loopRenderer.render();
+    SDL_RenderPresent(renderer);
+#endif
+
     handleEvents();
 
     capFPS();
@@ -130,6 +142,10 @@ void SDL<EventHandler, Renderer>::deinit()
   TTF_Quit();
   IMG_Quit();
   
+#if defined(WINDOW_SCALE)
+  SDL_DestroyTexture(buffer);
+#endif
+
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   
@@ -159,7 +175,11 @@ void SDL<EventHandler, Renderer>::handleEvents()
 #if MOUSE_ENABLED
     case SDL_MOUSEBUTTONDOWN:
     case SDL_MOUSEBUTTONUP:
-        eventHandler.handleMouseEvent(event);
+#if defined(WINDOW_SCALE)
+      event.button.x /= WINDOW_SCALE;
+      event.button.y /= WINDOW_SCALE;
+#endif
+      eventHandler.handleMouseEvent(event);
 #endif
     }
   }
