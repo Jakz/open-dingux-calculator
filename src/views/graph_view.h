@@ -39,6 +39,103 @@ namespace graph
   };
 }
 
+
+#define AT(canvas__, x__, y__) static_cast<u32*>(canvas__->pixels)[y__*canvas__->w + x__]
+#define IS_INSIDE(x__, y__) (x__ >= 0 && x__ < 320 && y__ >= 0 && y__ < 240)
+
+
+float ipart(float x) { return std::floor(x); }
+float fpart(float x) { return x - ipart(x); }
+float rfpart(float x) { return 1.0f - fpart(x); }
+void pixel(SDL_Surface* canvas, int x, int y, float b) 
+{
+  if (IS_INSIDE(x, y))
+  {
+    int alpha = (int)(255 * b);
+
+    //if ((AT(canvas, x, y) & 0xff000000 >> 24) < alpha)
+      AT(canvas, x, y) = 0x00ff0000 + ((int)(255 * b) << 24);
+  }
+}
+
+void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
+{
+  bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
+
+  if (steep)
+  {
+    std::swap(x0, y0);
+    std::swap(x1, y1);
+  }
+
+  if (x0 > x1)
+  {
+    std::swap(x0, x1);
+    std::swap(y0, y1);
+  }
+
+  float dx = x1 - x0;
+  float dy = y1 - y0;
+  float gradient = dy / dx;
+  if (dx == 0.0f) gradient = 1.0f;
+
+  float xend = std::round(x0);
+  float yend = y0 + gradient * (xend - x0);
+  float xgap = rfpart(x0 + 0.5f);
+  int xpxl1 = xend;
+  int ypxl1 = ipart(yend);
+
+  if (steep)
+  {
+    pixel(canvas, ypxl1, xpxl1, rfpart(yend) * xgap);
+    pixel(canvas, ypxl1+1, xpxl1, fpart(yend) * xgap);
+  }
+  else
+  {
+    pixel(canvas, xpxl1, ypxl1, rfpart(yend) * xgap);
+    pixel(canvas, xpxl1, ypxl1+1, fpart(yend) * xgap);
+  }
+
+  float intery = yend + gradient;
+
+  xend = std::round(x1);
+  yend = y1 + gradient * (xend - x1);
+  xgap = fpart(x1 + 0.5);
+  int xpxl2 = xend;
+  int ypxl2 = ipart(yend);
+
+  if (steep)
+  {
+    pixel(canvas, ypxl2, xpxl2, rfpart(yend) * xgap);
+    pixel(canvas, ypxl2 + 1, xpxl2, fpart(yend) * xgap);
+  }
+  else
+  {
+    pixel(canvas, xpxl2, ypxl2, rfpart(yend) * xgap);
+    pixel(canvas, xpxl2, ypxl2 + 1, fpart(yend) * xgap);
+  }
+
+  if (steep)
+  {
+    for (int x = xpxl1 + 1; x < xpxl2; ++x)
+    {
+      pixel(canvas, ipart(intery), x, rfpart(intery));
+      pixel(canvas, ipart(intery)+1, x, fpart(intery));
+      intery += gradient;
+    }
+  }
+  else
+  {
+    for (int x = xpxl1 + 1; x < xpxl2; ++x)
+    {
+      pixel(canvas, x, ipart(intery), rfpart(intery));
+      pixel(canvas, x, ipart(intery) + 1, fpart(intery));
+      intery += gradient;
+    }
+  }
+  
+}
+
 namespace ui
 {
   class GraphView : public View
@@ -63,9 +160,6 @@ namespace ui
   GraphView::GraphView(ViewManager* manager) : manager(manager), canvas(nullptr)
   { 
   }
-
-#define AT(canvas__, x__, y__) static_cast<u32*>(canvas__->pixels)[y__*canvas__->w + x__]
-#define IS_INSIDE(x__, y__) (x__ >= 0 && x__ < 320 && y__ >= 0 && y__ < 240)
 
   void line(SDL_Surface* canvas, float x0, float y0, float x1, float y1, u32 color)
   {
@@ -107,8 +201,9 @@ namespace ui
 
     using value_list_t = std::list<std::pair<double, double>>;
     FunctionSampler1D::SampleFunctionParams params;
-    params.InitialPoints = 100;
-    params.MaxRecursion = 20;
+    params.InitialPoints = 50;
+    params.RangeThreshold = 0.0005f;
+    params.MaxRecursion = 50;
     value_list_t values;
     std::function<double(double)> funcd = [&func](double x) { return (double)func(x); };
     FunctionSampler1D::SampleFunction(funcd, -5, 5, params, values);
@@ -124,13 +219,15 @@ namespace ui
     {
       int x1 = std::roundf(horizontal(f->first)), y1 = std::roundf(vertical(f->second));
       int x2 = std::roundf(horizontal(s->first)), y2 = std::roundf(vertical(s->second));
-      line(canvas, x1, y1, x2, y2, 0xffff0000);
+      draw_line(canvas, x1, y1, x2, y2);
 
+      /*
       if (IS_INSIDE(x1, y1))
         AT(canvas, x1, y1) = 0xff000000;
 
       if (IS_INSIDE(x2, y2))
         AT(canvas, x2, y2) = 0xff000000;
+        */
     }
 
     /*const float dx = (horizontalBounds.max - horizontalBounds.min) / (WIDTH*100.0f);
@@ -141,7 +238,7 @@ namespace ui
       for (s32 pw = 0; pw < 1; ++pw)
         for (s32 ph = 0; ph < 1; ++ph)
         {
-          int px = horizontal(pw + fx), py = vertical(ph + fy);
+          int px = horizontal(pw + fx), py = vertical(ph + fy);+
 
           if (px >= 0 && px < WIDTH && py >= 0 && py < HEIGHT)
           {
@@ -209,7 +306,7 @@ namespace ui
     auto* renderer = manager->getRenderer();
 
     if (!canvas)
-      renderFunction([](float x) { return sin(x)*3; });
+      renderFunction([](float x) { return sqrt(abs(x))*3.24f; });
    
     
     SDL_SetRenderDrawColor(renderer, 255, 250, 237, 255);

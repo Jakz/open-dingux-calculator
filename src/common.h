@@ -11,7 +11,7 @@ using s64 = int64_t;
 
 #ifdef _WIN32
 #define MOUSE_ENABLED true
-#define WINDOW_SCALE 3
+#define WINDOW_SCALE 1
 #else
 #define MOUSE_ENABLED false
 #endif
