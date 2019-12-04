@@ -30,3 +30,12 @@ $(EXECUTABLE): $(BINARIES)
 
 clean:
 	rm -f $(BINARIES) $(EXECUTABLE)
+
+opk:
+	rm -rf .opk_data
+	mkdir -p .opk_data/data
+	cp -r data/* .opk_data/data
+	cp icon.png .opk_data/
+	cp default.gcw0.desktop .opk_data/
+	cp odcalc .opk_data/odcalc
+	mksquashfs .opk_data $(EXECUTABLE).opk -all-root -noappend -no-exports -no-xattrs -no-progress > /dev/null

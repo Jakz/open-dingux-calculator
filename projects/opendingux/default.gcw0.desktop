@@ -1,8 +1,9 @@
 [Desktop Entry]
 Type=Application
 Name=Calculator
-Comment=OpenDingux Calculator
+Comment=OpenDingux Calculator v0.1
 Terminal=false
 StartupNotify=true
 Exec=odcalc
+Icon=icon
 Categories=applications;
