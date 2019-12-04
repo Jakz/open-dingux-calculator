@@ -47,13 +47,13 @@ namespace FunctionSampler1D {
   // values.
   struct SampleFunctionParams {
     size_t InitialPoints;
-    double RangeThreshold;
-    double MaxBend;
+    float RangeThreshold;
+    float MaxBend;
     size_t MaxRecursion;
     SampleFunctionParams() :
       InitialPoints(25),
-      RangeThreshold(0.005),
-      MaxBend(10.0*M_PI / 180.0),
+      RangeThreshold(0.005f),
+      MaxBend(10.0*M_PI / 180.0f),
       MaxRecursion(20) {}
   };
 
@@ -62,31 +62,31 @@ namespace FunctionSampler1D {
   //   FunctionType:
   //   + Must implement std::unary_function
   //   + Must implement
-  //     std::unary_function::result_type operator()(double) [const] { ... }
+  //     std::unary_function::result_type operator()(real_t) [const] { ... }
   //   + The std::unary_function::result_type must have define
-  //     operator double() const{ ... } to return the function value
+  //     operator real_t() const{ ... } to return the function value
   // Output properties:
   //   + The output value list is in sorted ascending order by the x-coordinate
   //     (first value in pair)
-  template <class FunctionType>
+  template <class FunctionType, typename real_t>
   void SampleFunction(
     FunctionType f,
-    double x0, double x1,
+    real_t x0, real_t x1,
     const SampleFunctionParams &params,
-    std::list<std::pair<double, typename FunctionType::result_type> > &values
+    std::list<std::pair<real_t, typename FunctionType::result_type> > &values
   ) {
     typedef typename FunctionType::result_type function_result;
-    typedef typename std::pair<double, function_result> list_element_t;
+    typedef typename std::pair<real_t, function_result> list_element_t;
     typedef typename std::list<list_element_t> value_list_t;
     typedef typename value_list_t::iterator value_list_iterator_t;
     values.erase(values.begin(), values.end());
 
-    double dx = (x1 - x0) / (double)(params.InitialPoints - 1);
-    double y_min = DBL_MAX, y_max = -DBL_MAX;
+    real_t dx = (x1 - x0) / (real_t)(params.InitialPoints - 1);
+    real_t y_min = DBL_MAX, y_max = -DBL_MAX;
     for (size_t j = 0; j < params.InitialPoints; ++j) {
-      double x_new = x0 + (double)j*dx;
+      real_t x_new = x0 + (real_t)j*dx;
       function_result p = f(x_new);
-      double pval = static_cast<double>(p);
+      real_t pval = static_cast<real_t>(p);
       if (pval < y_min) { y_min = pval; }
       if (pval > y_max) { y_max = pval; }
       values.push_back(list_element_t(x_new, p));
@@ -97,15 +97,15 @@ namespace FunctionSampler1D {
     value_list_iterator_t i;
 
     i = istart;
-    double min_dx = dx * pow(0.5, (int)params.MaxRecursion);
+    real_t min_dx = dx * pow(0.5, (int)params.MaxRecursion);
     while (i != iend) {
       value_list_iterator_t i_prev = i; i_prev--;
       value_list_iterator_t i_next = i; i_next++;
-      double yp, y0, yn;
-      double xp, x0, xn;
-      yp = double(i_prev->second); xp = i_prev->first;
-      y0 = double(i->second); x0 = i->first;
-      yn = double(i_next->second); xn = i_next->first;
+      real_t yp, y0, yn;
+      real_t xp, x0, xn;
+      yp = real_t(i_prev->second); xp = i_prev->first;
+      y0 = real_t(i->second); x0 = i->first;
+      yn = real_t(i_next->second); xn = i_next->first;
 
 #if defined(DEBUG_SAMPLER)
       std::cerr << "* x0=" << x0 << ", y0=" << y0 << std::endl;
@@ -124,21 +124,21 @@ namespace FunctionSampler1D {
       }
 
       // Fit to square
-      double local_y_max = std::max(yp, y0);
+      real_t local_y_max = std::max(yp, y0);
       local_y_max = std::max(local_y_max, yn);
-      double local_y_min = std::min(yp, y0);
+      real_t local_y_min = std::min(yp, y0);
       local_y_min = std::min(local_y_min, yn);
-      double local_x_max = std::max(xp, x0);
+      real_t local_x_max = std::max(xp, x0);
       local_x_max = std::max(local_x_max, xn);
-      double local_x_min = std::min(xp, x0);
+      real_t local_x_min = std::min(xp, x0);
       local_x_min = std::min(local_x_min, xn);
-      double dx0 = (x0 - xp) / (local_x_max - local_x_min);
-      double dx1 = (xn - x0) / (local_x_max - local_x_min);
-      double dy0 = (y0 - yp) / (local_y_max - local_y_min);
-      double dy1 = (yn - y0) / (local_y_max - local_y_min);
+      real_t dx0 = (x0 - xp) / (local_x_max - local_x_min);
+      real_t dx1 = (xn - x0) / (local_x_max - local_x_min);
+      real_t dy0 = (y0 - yp) / (local_y_max - local_y_min);
+      real_t dy1 = (yn - y0) / (local_y_max - local_y_min);
       // Find the cosine of the angle between segments
       // 0->p and p->n using dot product
-      double cosq = (dx0*dx1 + dy0 * dy1)
+      real_t cosq = (dx0*dx1 + dy0 * dy1)
         / std::sqrt((dx0*dx0 + dy0 * dy0) * (dx1*dx1 + dy1 * dy1));
 
       // If the function is sufficiently "flat" (small y-variation)
@@ -170,12 +170,12 @@ namespace FunctionSampler1D {
       if ((cosq < cos(params.MaxBend)) || (dx1 > 3 * dx0) || (dx0 > 3 * dx1)) {
         if (x0 - xp > xn - x0) {
           // Add point before the current iterator
-          double x_new = 0.5*(xp + x0);
+          real_t x_new = 0.5*(xp + x0);
 #if defined(DEBUG_SAMPLER)
           std::cerr << "*  Inserting before at x=" << x_new << std::endl;
 #endif
           function_result p = f(x_new);
-          double pval = static_cast<double>(p);
+          real_t pval = static_cast<real_t>(p);
           if (p < y_min) { y_min = p; }
           if (p > y_max) { y_max = p; }
           values.insert(i, list_element_t(x_new, p));
@@ -184,12 +184,12 @@ namespace FunctionSampler1D {
         }
         else {
           // Add point after the current iterator
-          double x_new = 0.5*(x0 + xn);
+          real_t x_new = 0.5*(x0 + xn);
 #if defined(DEBUG_SAMPLER)
           std::cerr << "*  Inserting after at x=" << x_new << std::endl;
 #endif
           function_result p = f(x_new);
-          double pval = static_cast<double>(p);
+          real_t pval = static_cast<real_t>(p);
           if (p < y_min) { y_min = p; }
           if (p > y_max) { y_max = p; }
           values.insert(i_next, list_element_t(x_new, p));

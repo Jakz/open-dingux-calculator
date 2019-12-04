@@ -100,7 +100,7 @@ void SDL<EventHandler, Renderer>::loop()
 {
   while (!willQuit)
   {
-#if false && defined(WINDOW_SCALE)
+#if false defined(WINDOW_SCALE)
     SDL_SetRenderTarget(renderer, buffer);
     loopRenderer.render();
     SDL_SetRenderTarget(renderer, nullptr);

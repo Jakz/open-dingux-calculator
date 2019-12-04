@@ -80,9 +80,10 @@ private:
       SDL_Rect src = { 0, 0, surface->w, surface->h };
       const SDL_Rect& dest = pair.first->second;
 
+      auto* target = SDL_GetRenderTarget(_renderer);
       SDL_SetRenderTarget(_renderer, _texture);
       SDL_RenderCopy(_renderer, texture, &src, &dest);
-      SDL_SetRenderTarget(_renderer, nullptr);
+      SDL_SetRenderTarget(_renderer, target);
 
       SDL_DestroyTexture(texture);
     }
@@ -133,10 +134,11 @@ public:
     {
       _texture = SDL_CreateTexture(renderer, info.texture_formats[0], SDL_TEXTUREACCESS_TARGET, w, h);
       SDL_SetTextureBlendMode(_texture, SDL_BLENDMODE_BLEND);
+      auto* target = SDL_GetRenderTarget(renderer);
       SDL_SetRenderTarget(_renderer, _texture);
       SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 0);
       SDL_RenderClear(_renderer);
-      SDL_SetRenderTarget(_renderer, nullptr);
+      SDL_SetRenderTarget(_renderer, target);
     }
   }
 

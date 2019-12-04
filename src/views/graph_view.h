@@ -47,18 +47,18 @@ namespace graph
 float ipart(float x) { return std::floor(x); }
 float fpart(float x) { return x - ipart(x); }
 float rfpart(float x) { return 1.0f - fpart(x); }
-void pixel(SDL_Surface* canvas, int x, int y, float b)
+void pixel(SDL_Surface* canvas, int x, int y, float b, u32 color)
 {
   if (IS_INSIDE(x, y))
   {
     int alpha = (int)(255 * b);
 
     //if ((AT(canvas, x, y) & 0xff000000 >> 24) < alpha)
-      AT(canvas, x, y) = 0x00ff0000 + ((int)(255 * b) << 24);
+      AT(canvas, x, y) = color + ((int)(255 * b) << 24);
   }
 }
 
-void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
+void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1, u32 color)
 {
   bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
 
@@ -87,13 +87,13 @@ void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
 
   if (steep)
   {
-    pixel(canvas, ypxl1, xpxl1, rfpart(yend) * xgap);
-    pixel(canvas, ypxl1+1, xpxl1, fpart(yend) * xgap);
+    pixel(canvas, ypxl1, xpxl1, rfpart(yend) * xgap, color);
+    pixel(canvas, ypxl1+1, xpxl1, fpart(yend) * xgap, color);
   }
   else
   {
-    pixel(canvas, xpxl1, ypxl1, rfpart(yend) * xgap);
-    pixel(canvas, xpxl1, ypxl1+1, fpart(yend) * xgap);
+    pixel(canvas, xpxl1, ypxl1, rfpart(yend) * xgap, color);
+    pixel(canvas, xpxl1, ypxl1+1, fpart(yend) * xgap, color);
   }
 
   float intery = yend + gradient;
@@ -106,21 +106,21 @@ void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
 
   if (steep)
   {
-    pixel(canvas, ypxl2, xpxl2, rfpart(yend) * xgap);
-    pixel(canvas, ypxl2 + 1, xpxl2, fpart(yend) * xgap);
+    pixel(canvas, ypxl2, xpxl2, rfpart(yend) * xgap, color);
+    pixel(canvas, ypxl2 + 1, xpxl2, fpart(yend) * xgap, color);
   }
   else
   {
-    pixel(canvas, xpxl2, ypxl2, rfpart(yend) * xgap);
-    pixel(canvas, xpxl2, ypxl2 + 1, fpart(yend) * xgap);
+    pixel(canvas, xpxl2, ypxl2, rfpart(yend) * xgap, color);
+    pixel(canvas, xpxl2, ypxl2 + 1, fpart(yend) * xgap, color);
   }
 
   if (steep)
   {
     for (int x = xpxl1 + 1; x < xpxl2; ++x)
     {
-      pixel(canvas, ipart(intery), x, rfpart(intery));
-      pixel(canvas, ipart(intery)+1, x, fpart(intery));
+      pixel(canvas, ipart(intery), x, rfpart(intery), color);
+      pixel(canvas, ipart(intery)+1, x, fpart(intery), color);
       intery += gradient;
     }
   }
@@ -128,8 +128,8 @@ void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
   {
     for (int x = xpxl1 + 1; x < xpxl2; ++x)
     {
-      pixel(canvas, x, ipart(intery), rfpart(intery));
-      pixel(canvas, x, ipart(intery) + 1, fpart(intery));
+      pixel(canvas, x, ipart(intery), rfpart(intery), color);
+      pixel(canvas, x, ipart(intery) + 1, fpart(intery), color);
       intery += gradient;
     }
   }
@@ -138,187 +138,182 @@ void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
 
 namespace ui
 {
+  static constexpr int WIDTH = 320;
+  static constexpr int HEIGHT = 240;
+
+  struct RenderEnvironment
+  {
+    struct { graph::bounds_t hor, ver; } bounds;
+    struct { graph::function hor, ver; } mapper;
+  };
+
+  class RenderedFunction
+  {
+    mutable SDL_Surface* _canvas;
+    mutable SDL_Texture* _texture;
+    mutable bool _dirty;
+    graph::function _function;
+    u32 _color;
+
+    void repaint(const RenderEnvironment& env) const
+    {
+      using value_list_t = std::list<std::pair<float, float>>;
+      FunctionSampler1D::SampleFunctionParams params;
+      params.InitialPoints = 50;
+      params.RangeThreshold = 0.0005f;
+      params.MaxRecursion = 50;
+      value_list_t values;
+
+      FunctionSampler1D::SampleFunction(_function, env.bounds.hor.min, env.bounds.hor.max, params, values);
+
+      u32* pixels = static_cast<u32*>(_canvas->pixels);
+
+      auto f = values.begin();
+      auto s = std::next(values.begin());
+      for (; s != values.end(); ++f, ++s)
+      {
+        int x1 = roundf(env.mapper.hor(f->first)), y1 = roundf(env.mapper.ver(f->second));
+        int x2 = roundf(env.mapper.hor(s->first)), y2 = roundf(env.mapper.ver(s->second));
+
+        if (!IS_INSIDE(x1, y1) && !IS_INSIDE(x2, y2))
+          continue;
+
+        draw_line(_canvas, x1, y1, x2, y2, _color);
+      }
+    }
+
+  public:
+    RenderedFunction(graph::function function, u32 color) : _canvas(nullptr), _texture(nullptr), _dirty(true), _function(function), _color(color)
+    {
+
+    }
+
+    ~RenderedFunction()
+    {
+      SDL_FreeSurface(_canvas);
+      SDL_DestroyTexture(_texture);
+    }
+
+    void dirty() { _dirty = true; }
+
+    void render(SDL_Renderer* renderer, const RenderEnvironment& env) const
+    {
+      if (!_canvas)
+        _canvas = SDL_CreateRGBSurface(0, WIDTH, HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+
+      if (_dirty)
+      {
+        repaint(env); 
+
+        if (_texture)
+          SDL_DestroyTexture(_texture);
+
+        _texture = SDL_CreateTextureFromSurface(renderer, _canvas);
+        SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
+        SDL_GetTextureBlendMode(_texture, &blendMode);
+        _dirty = false;
+      }
+
+      SDL_RenderCopy(renderer, _texture, nullptr, nullptr);
+
+    }
+  };
+  
   class GraphView : public View
   {
   private:
-    ViewManager* manager;
+    ViewManager* gvm;
 
-    SDL_Surface* canvas;
-    SDL_Surface* aaCanvas;
-    SDL_Texture* texture;
+    void drawAxes();
+
+    RenderEnvironment env;
+    std::vector<RenderedFunction> functions;
 
   public:
-    GraphView(ViewManager* manager);
+    GraphView(ViewManager* gvm);
 
     void render();
     void handleKeyboardEvent(const SDL_Event& event);
     void handleMouseEvent(const SDL_Event& event);
 
-    void renderFunction(std::function<float(float)> func);
+    void setBounds(graph::bounds_t hor, graph::bounds_t ver);
   };
 
-  GraphView::GraphView(ViewManager* manager) : manager(manager), canvas(nullptr)
+  GraphView::GraphView(ViewManager* gvm) : gvm(gvm)
   {
+    float ratio = HEIGHT / (float)WIDTH;
+    float value = 20.0f;
+    setBounds({ -value, value }, { -value * ratio, value * ratio });
+    functions.emplace_back([](float x) { return abs(x); }, 0x00ff0000);
+    functions.emplace_back([](float x) { return sin(x)*3; }, 0x0000ff00);
+    functions.emplace_back([](float x) { return x*x; }, 0x000000ff);
+    functions.emplace_back([](float x) { return x * x * x; }, 0x00ff8000);
+
   }
 
-  void line(SDL_Surface* canvas, float x0, float y0, float x1, float y1, u32 color)
+  void GraphView::setBounds(graph::bounds_t hor, graph::bounds_t ver)
   {
-    int i;
-    double x = x1 - x0;
-    double y = y1 - y0;
-    double length = sqrt(x*x + y * y);
-    double addx = x / length;
-    double addy = y / length;
-    x = x0;
-    y = y0;
+    env.bounds.hor = hor;
+    env.bounds.ver = ver;
 
-    {
-      for (i = 0; i < length; i += 1) {
-
-        if (x >= 0 && x < 320 && y >= 0 && y < 240)
-          AT(canvas, (int)x, (int)y) = color;
-        x += addx;
-        y += addy;
-      }
-    }
+    env.mapper.hor = graph::coordinate_mapper_builder().horizontal(env.bounds.hor.min, env.bounds.hor.max);
+    env.mapper.ver = graph::coordinate_mapper_builder().vertical(env.bounds.ver.min, env.bounds.ver.max);
   }
 
-
-  void GraphView::renderFunction(graph::function func)
+  void GraphView::drawAxes()
   {
-    const int WIDTH = 320;
-    const int HEIGHT = 240;
+    SDL_SetRenderDrawBlendMode(gvm->getRenderer(), SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(gvm->getRenderer(), 0, 0, 0, 60);
+    
+    const float LX = 3, LY = 6;
 
-    const graph::bounds_t horizontalBounds = { -5.0, 5.0f };
-    const graph::bounds_t verticalBounds = { -10.0f, 10.0f };
-
-    graph::function vertical = graph::coordinate_mapper_builder().vertical(verticalBounds.min, verticalBounds.max);
-    graph::function horizontal = graph::coordinate_mapper_builder().horizontal(horizontalBounds.min, horizontalBounds.max);
-
-    canvas = SDL_CreateRGBSurface(0, WIDTH, HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-    aaCanvas = SDL_CreateRGBSurface(0, WIDTH, HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
-
-
-    using value_list_t = std::list<std::pair<double, double>>;
-    FunctionSampler1D::SampleFunctionParams params;
-    params.InitialPoints = 50;
-    params.RangeThreshold = 0.0005f;
-    params.MaxRecursion = 50;
-    value_list_t values;
-    std::function<double(double)> funcd = [&func](double x) { return (double)func(x); };
-    FunctionSampler1D::SampleFunction(funcd, -5, 5, params, values);
-
-
-
-    u32* pixels = static_cast<u32*>(canvas->pixels);
-    u32 x = 10, y = 15;
-
-    auto f = values.begin();
-    auto s = std::next(values.begin());
-    for ( ; s != values.end(); ++f, ++s )
+    float sx = env.mapper.hor(0.0f);
+    if (sx >= 0 && sx < WIDTH)
     {
-      int x1 = roundf(horizontal(f->first)), y1 = roundf(vertical(f->second));
-      int x2 = roundf(horizontal(s->first)), y2 = roundf(vertical(s->second));
-      draw_line(canvas, x1, y1, x2, y2);
-
-      /*
-      if (IS_INSIDE(x1, y1))
-        AT(canvas, x1, y1) = 0xff000000;
-
-      if (IS_INSIDE(x2, y2))
-        AT(canvas, x2, y2) = 0xff000000;
-        */
+      SDL_RenderDrawLine(gvm->getRenderer(), sx, 0, sx, HEIGHT);
+      SDL_RenderDrawLine(gvm->getRenderer(), sx - LX, LY, sx, 0);
+      SDL_RenderDrawLine(gvm->getRenderer(), sx + LX, LY, sx, 0);
     }
 
-    /*const float dx = (horizontalBounds.max - horizontalBounds.min) / (WIDTH*100.0f);
-    for (float fx = horizontalBounds.min; fx <= horizontalBounds.max; fx += dx)
+    float sy = env.mapper.ver(0.0f);
+    if (sy >= 0 && sy < HEIGHT)
     {
-      float fy = func(fx);
-
-      for (s32 pw = 0; pw < 1; ++pw)
-        for (s32 ph = 0; ph < 1; ++ph)
-        {
-          int px = horizontal(pw + fx), py = vertical(ph + fy);+
-
-          if (px >= 0 && px < WIDTH && py >= 0 && py < HEIGHT)
-          {
-            float brigthness = 1.0f - 0.3f*(std::abs(pw - 1) + std::abs(ph - 1));
-
-            u32 oldColor = pixels[py*canvas->w + px];
-
-            u32 a = (oldColor & 0xff000000) >> 24;
-
-            //pixels[py*canvas->w + px] = SDL_MapRGBA(canvas->format, 255, 0, 0, std::max((int)((brigthness * 255)*0.5f + a), 255));
-            pixels[py*canvas->w + px] = SDL_MapRGBA(canvas->format, 255, 0, 0, 255);
-          }
-        }
-    }*/
-
-    /*
-    for (int x = 0; x < WIDTH; ++x)
-      for (int y = 0; y < HEIGHT; ++y)
-      {
-        int r = 0, g = 0, b = 0, a = 0;
-        for (int dx = -2; dx <= 2; ++dx)
-          for (int dy = -2; dy <= 2; ++dy)
-          {
-            if (dx != 0 || dy != 0)
-            {
-              int fx = x + dx, fy = y + dy;
-              if (fx > 0 && fx < WIDTH && fy > 0 && fy < HEIGHT)
-              {
-                int distance = std::abs(dx) + std::abs(dy);
-                float coefficient = 1.0f;
-                switch (distance) {
-                case 1: coefficient = 0.20f; break;
-                case 2: coefficient = 0.08f; break;
-                case 3: coefficient = 0.03f; break;
-                case 4: coefficient = 0.01f; break;
-                default: assert(false);
-                };
-
-                const u32 color = AT(canvas, fx, fy);
-                r += ((color & 0x00ff0000) >> 16) * coefficient;
-                g += (color & 0x0000ff00) >> 8;
-                b += color & 0x000000ff;
-                a += ((color & 0xff000000) >> 24) * coefficient;
-              }
-            }
-          }
-
-        if (r + g + b + a)
-          AT(aaCanvas, x, y) = SDL_MapRGBA(aaCanvas->format, 255, 0, 0, a);
-      }
-
-    for (int x = 0; x < WIDTH; ++x)
-      for (int y = 0; y < HEIGHT; ++y)
-      {
-        if (AT(canvas, x, y) == 0x00000000 && AT(aaCanvas, x, y) != 0)
-          AT(canvas, x, y) += AT(aaCanvas, x, y);
-      }
-    */
-
-    texture = SDL_CreateTextureFromSurface(manager->getRenderer(), canvas);
+      SDL_RenderDrawLine(gvm->getRenderer(), 0, sy, WIDTH, sy);
+      SDL_RenderDrawLine(gvm->getRenderer(), WIDTH - LY, sy - LX, WIDTH - 1, sy);
+      SDL_RenderDrawLine(gvm->getRenderer(), WIDTH - LY, sy + LX, WIDTH - 1, sy);
+    }
   }
 
   void GraphView::render()
   {
-    auto* renderer = manager->getRenderer();
-
-    if (!canvas)
-      renderFunction([](float x) { return sqrt(abs(x))*3.24f; });
-
+    auto* renderer = gvm->getRenderer();
 
     SDL_SetRenderDrawColor(renderer, 255, 250, 237, 255);
-    //SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
+   
+    for (const auto& function : functions)
+      function.render(renderer, env);
 
-    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+    drawAxes();
   }
 
   void GraphView::handleKeyboardEvent(const SDL_Event& event)
   {
-
+    switch (event.key.keysym.sym)
+    {
+    case SDLK_LEFT:
+    {
+      env.bounds.hor.min -= 1.0f;
+      env.bounds.hor.max -= 1.0f;
+      break;
+    }
+    case SDLK_RIGHT:
+    {
+      env.bounds.hor.min += 1.0f;
+      env.bounds.hor.max += 1.0f;
+      break;
+    }
+    }
   }
 
   void GraphView::handleMouseEvent(const SDL_Event& event)
