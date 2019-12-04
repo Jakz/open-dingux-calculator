@@ -203,6 +203,7 @@ namespace ui
 
       if (_dirty)
       {
+        SDL_FillRect(_canvas, nullptr, 0);
         repaint(env); 
 
         if (_texture)
@@ -232,6 +233,7 @@ namespace ui
   public:
     GraphView(ViewManager* gvm);
 
+    void dirty();
     void render();
     void handleKeyboardEvent(const SDL_Event& event);
     void handleMouseEvent(const SDL_Event& event);
@@ -258,6 +260,12 @@ namespace ui
 
     env.mapper.hor = graph::coordinate_mapper_builder().horizontal(env.bounds.hor.min, env.bounds.hor.max);
     env.mapper.ver = graph::coordinate_mapper_builder().vertical(env.bounds.ver.min, env.bounds.ver.max);
+  }
+
+  void GraphView::dirty()
+  {
+    for (auto& function : functions)
+      function.dirty();
   }
 
   void GraphView::drawAxes()
@@ -303,14 +311,26 @@ namespace ui
     {
     case SDLK_LEFT:
     {
-      env.bounds.hor.min -= 1.0f;
-      env.bounds.hor.max -= 1.0f;
+      setBounds({ env.bounds.hor.min - 1.0f, env.bounds.hor.max - 1.0f }, env.bounds.ver);
+      dirty();
       break;
     }
     case SDLK_RIGHT:
     {
-      env.bounds.hor.min += 1.0f;
-      env.bounds.hor.max += 1.0f;
+      setBounds({ env.bounds.hor.min + 1.0f, env.bounds.hor.max + 1.0f }, env.bounds.ver);
+      dirty();
+      break;
+    }
+    case SDLK_UP:
+    {
+      setBounds(env.bounds.hor, { env.bounds.ver.min + 1.0f, env.bounds.ver.max + 1.0f });
+      dirty();
+      break;
+    }
+    case SDLK_DOWN:
+    {
+      setBounds(env.bounds.hor, { env.bounds.ver.min - 1.0f, env.bounds.ver.max - 1.0f });
+      dirty();
       break;
     }
     }
