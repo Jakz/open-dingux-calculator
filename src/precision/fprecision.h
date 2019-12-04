@@ -332,8 +332,8 @@ class float_precision {
 	  std::string toString() const					{ return _float_precision_ftoa(this); }
 	  int_precision to_int_precision() const		{ std::string s = _float_precision_ftoainteger(this); return (int_precision)((char *)s.c_str()); }
 	  std::string toFixed(int );
-	  std::string toPrecision(int);
-	  std::string toExponential(int);
+	  std::string toPrecision(int) const;
+	  std::string toExponential(int) const;
 
 	  // Implicit/explicit conversion operators
       operator char() const;
@@ -2009,7 +2009,7 @@ inline std::string float_precision::toFixed(int fix = 0)
 ///   return the string value value of the precision of the float_precision number
 ///	  same functionality as the javascript .toPrecision() method	
 //
-inline std::string float_precision::toPrecision(int fix = 1)
+inline std::string float_precision::toPrecision(int fix = 1) const
 	{
 	std::string ss;
 	char sign;
@@ -2066,7 +2066,7 @@ inline std::string float_precision::toPrecision(int fix = 1)
 ///   return the string value value of the toExponential precision of the float_precision number
 ///	  same functionality as the javascript .toExponential() method	
 //
-inline std::string float_precision::toExponential(int fix = 0)
+inline std::string float_precision::toExponential(int fix = 0) const
 	{
 	std::string ss;
 	char sign;

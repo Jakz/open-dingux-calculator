@@ -11,7 +11,9 @@
 
 namespace calc
 {
-  struct Value
+  using Value = float_precision;
+  
+  /*struct Value
   {
     static constexpr size_t MAX_PRECISION = 256;
     
@@ -26,7 +28,7 @@ namespace calc
     Value() : Value(0.0f) { }
     Value(int i) : i(i), mode(Mode::INT) { }
     Value(int_precision i) : i(i), mode(Mode::INT) { }
-    Value(double d) : f(f), mode(Mode::FLOAT) { }
+    Value(double f) : f(f), mode(Mode::FLOAT) { }
     Value(float_precision f) : f(f), mode(Mode::FLOAT) { }
 
     Value(const Value& other) : mode(other.mode)
@@ -48,9 +50,9 @@ namespace calc
     ~Value()
     {
       if (mode == Mode::INT)
-        i.~int_precision();
+        (&i)->~int_precision();
       else if (mode == Mode::FLOAT)
-        f.~float_precision();
+        (&f)->~float_precision();
     }
     
     Value& operator=(const Value& other)
@@ -69,7 +71,7 @@ namespace calc
     { 
       if (mode == Mode::INT)
       {
-        f = float_precision(i.toString(), MAX_PRECISION /*i.size()*2*/);
+        f = float_precision(i.toString(), MAX_PRECISION);
       }
     }
 
@@ -119,7 +121,8 @@ namespace calc
     Value& operator+=(Value other)
     {
       if (other.isInt() && !isInt()) other.toFloat();
-      *this = *this + other;
+      if (mode == Mode::INT) i += other.i;
+      else if (mode == Mode::FLOAT) f += other.f;
       return *this;
     }
 
@@ -133,7 +136,8 @@ namespace calc
     Value& operator*=(Value other)
     {
       if (other.isInt() && !isInt()) other.toFloat();
-      *this = *this * other;
+      if (mode == Mode::INT) i *= other.i;
+      else if (mode == Mode::FLOAT) f *= other.f;
       return *this;
     }
 
@@ -150,6 +154,12 @@ namespace calc
       return Value(::sqrt(f));
     }
 
+    Value floor() const
+    {
+      assert(mode == Mode::FLOAT);
+      return Value(::floor(f));
+    }
+
     std::string toString() const
     {
       if (mode == Mode::INT) return i.toString();
@@ -157,7 +167,13 @@ namespace calc
       return std::string();
     }
 
-  };
+    bool operator==(const float_precision& other) const
+    {
+      assert(mode == Mode::FLOAT && other.mode == Mode::FLOAT);
+      return f == other.f;
+    }
+
+  };*/
   
   class Calculator
   {
@@ -176,69 +192,14 @@ namespace calc
     std::stack<value_t> _stack;
     std::stack<binary_operator_t> _operators;
     
-    std::string _strValue;
-    bool _willRestartValue;
 
-    enum class PointMode
-    {
-      INTEGRAL,
-      POINT,
-      AFTER_POINT
-    } _pointMode;
 
   public:
-    Calculator() : _willRestartValue(false), _value(0.0f), _hasMemory(false), _memory(0) { }
+    Calculator() : _value(0.0f), _hasMemory(false), _memory(0) { }
 
     void set(value_t value) { _value = value; }
     const value_t& value() const { return _value; }
-
-    void point()
-    {
-      _pointMode = PointMode::POINT;
-    }
-
-    void digit(int digit)
-    {
-      if (_willRestartValue)
-      {
-        _stack.push(_value);
-
-        _value = digit;
-
-        if (_pointMode == PointMode::POINT)
-        {
-          _value /= 10;
-          _pointMode = PointMode::AFTER_POINT;
-        }
-
-        _willRestartValue = false;
-      }
-      else
-      {
-        if (_pointMode == PointMode::INTEGRAL)
-        {
-          if (_value.isInt())
-          {
-            _value *= 10;
-            _value += digit;
-          }
-          else
-          {
-            _value *= 10.0;
-            _value += (float)digit;
-          }
-        }
-        else if (_pointMode == PointMode::POINT)
-        {
-          _value += digit / 10.0;
-        }
-        else if (_pointMode == PointMode::AFTER_POINT)
-        {
-
-        }
-      }
-
-    }
+    value_t& value() { return _value; }
 
     void pushValue()
     {
@@ -248,7 +209,6 @@ namespace calc
     void pushOperator(binary_operator_t op)
     {
       _operators.push(op);
-      _willRestartValue = true;
     }
 
     void apply(const unary_operator_t& op)
@@ -295,5 +255,3 @@ namespace calc
     value_t memory() const { return _memory; }
   };
 }
-
-calc::Value sqrt(const calc::Value& value) { return value.sqrt(); }

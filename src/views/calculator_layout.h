@@ -52,6 +52,57 @@ namespace gfx
     ButtonSpec(std::string label, int x, int y, int w, int h, SDL_Color color, Button::lambda_t lambda) : label(label), x(x), y(y), w(w), h(h), color(color), lambda(lambda) { }
   };
 
+  class DigitInputManager
+  {
+  private:
+    bool _willRestartValue;
+    bool _afterPointMode;
+    s32 _afterPointDigits;
+
+  public:
+    DigitInputManager() : _willRestartValue(false), _afterPointMode(false), _afterPointDigits(0) { }
+
+    
+    void updateValue(int digit, calc::Calculator& calc)
+    {
+      if (_willRestartValue)
+      {
+        calc.pushValue();
+        calc.set(0);
+      }
+
+      if (!_afterPointMode)
+      {
+        calc.value().exponent(calc.value().exponent() + 1);
+        calc.value() += digit;
+      }
+      else
+      {
+        float_precision f = digit;
+        f.exponent(-_afterPointDigits - 1);
+        calc.value() += f;
+        ++_afterPointDigits;
+      }
+
+      _willRestartValue = false;
+    }
+
+    void pointMode() { _afterPointMode = true; }
+    void restartValue() { _willRestartValue = true; }
+
+    void resetPointMode()
+    {
+      _afterPointMode = false;
+      _afterPointDigits = 0;
+    }
+
+    void reset()
+    {
+      resetPointMode();
+      _willRestartValue = true;
+    }
+  };
+
   class Layout
   {
   private:
@@ -167,23 +218,26 @@ namespace gfx
   class LayoutHelper
   {
   protected:
+    DigitInputManager digits;
+
+  protected:
     void addNumberGrid(std::vector<ButtonSpec>& buttons, int bx, int by, int bw, int bh)
     {
-      buttons.emplace_back(ButtonSpec{ "0", bx, by + 3 * bh, bw, bh, [](calc::Calculator& c) { c.digit(0); } });
-      buttons.emplace_back(ButtonSpec{ "00", bx + bw, by + 3 * bh, bw, bh, [](calc::Calculator& c) { c.digit(0); c.digit(0); } });
-      buttons.emplace_back(ButtonSpec{ ".", bx + bw * 2, by + 3 * bh, bw, bh, [](calc::Calculator& c) { c.point(); } });
+      buttons.emplace_back(ButtonSpec{ "0", bx, by + 3 * bh, bw, bh, [this](calc::Calculator& c) { digits.updateValue(0, c); } });
+      buttons.emplace_back(ButtonSpec{ "00", bx + bw, by + 3 * bh, bw, bh, [this](calc::Calculator& c) { digits.updateValue(0, c); digits.updateValue(0, c); } });
+      buttons.emplace_back(ButtonSpec{ ".", bx + bw * 2, by + 3 * bh, bw, bh, [this](calc::Calculator& c) { digits.pointMode(); } });
 
-      buttons.emplace_back(ButtonSpec{ "1", bx, by + 2 * bh, bw, bh, [](calc::Calculator& c) { c.digit(1); } });
-      buttons.emplace_back(ButtonSpec{ "2", bx + bw, by + 2 * bh, bw, bh, [](calc::Calculator& c) { c.digit(2); } });
-      buttons.emplace_back(ButtonSpec{ "3", bx + bw * 2, by + 2 * bh, bw, bh, [](calc::Calculator& c) { c.digit(3); } });
+      buttons.emplace_back(ButtonSpec{ "1", bx, by + 2 * bh, bw, bh, [this](calc::Calculator& c) { digits.updateValue(1, c); } });
+      buttons.emplace_back(ButtonSpec{ "2", bx + bw, by + 2 * bh, bw, bh, [this](calc::Calculator& c) { digits.updateValue(2, c); } });
+      buttons.emplace_back(ButtonSpec{ "3", bx + bw * 2, by + 2 * bh, bw, bh, [this](calc::Calculator& c) { digits.updateValue(3, c); } });
 
-      buttons.emplace_back(ButtonSpec{ "4", bx, by + 1 * bh, bw, bh, [](calc::Calculator& c) { c.digit(4); } });
-      buttons.emplace_back(ButtonSpec{ "5", bx + bw, by + 1 * bh, bw, bh, [](calc::Calculator& c) { c.digit(5); } });
-      buttons.emplace_back(ButtonSpec{ "6", bx + bw * 2, by + 1 * bh, bw, bh, [](calc::Calculator& c) { c.digit(6); } });
+      buttons.emplace_back(ButtonSpec{ "4", bx, by + 1 * bh, bw, bh, [this](calc::Calculator& c) { digits.updateValue(4, c); } });
+      buttons.emplace_back(ButtonSpec{ "5", bx + bw, by + 1 * bh, bw, bh, [this](calc::Calculator& c) { digits.updateValue(5, c); } });
+      buttons.emplace_back(ButtonSpec{ "6", bx + bw * 2, by + 1 * bh, bw, bh, [this](calc::Calculator& c) { digits.updateValue(6, c); } });
 
-      buttons.emplace_back(ButtonSpec{ "7", bx, by, bw, bh, [](calc::Calculator& c) { c.digit(7); } });
-      buttons.emplace_back(ButtonSpec{ "8", bx + bw, by, bw, bh, [](calc::Calculator& c) { c.digit(8); } });
-      buttons.emplace_back(ButtonSpec{ "9", bx + bw * 2, by, bw, bh, [](calc::Calculator& c) { c.digit(9); } });
+      buttons.emplace_back(ButtonSpec{ "7", bx, by, bw, bh, [this](calc::Calculator& c) { digits.updateValue(7, c); } });
+      buttons.emplace_back(ButtonSpec{ "8", bx + bw, by, bw, bh, [this](calc::Calculator& c) { digits.updateValue(8, c); } });
+      buttons.emplace_back(ButtonSpec{ "9", bx + bw * 2, by, bw, bh, [this](calc::Calculator& c) { digits.updateValue(9, c); } });
     }
 
   public:
@@ -191,7 +245,18 @@ namespace gfx
 
     void renderValue(char* dest, size_t length, ValueRenderMode mode, const calc::Calculator::value_t& value)
     {
-      sprintf(dest, "%s", value.toString().c_str());
+      float_precision i;
+      auto f = modf(value, &i);
+      
+      if (value.get_mantissa().length() == value.exponent() - 1)
+      {
+        sprintf(dest, "%s", i.to_int_precision().toString().c_str());
+      }
+      else
+        sprintf(dest, "%s", value.toPrecision(std::min(value.get_mantissa().length() + (value.exponent() < 0 ? 1 : 0), 10ULL)).c_str());
+
+
+        
       /*value_t truncated = trunc(value);
       if (truncated == value)
         sprintf(dest, "%.0f", value);
@@ -214,10 +279,10 @@ namespace gfx
       std::vector<ButtonSpec> buttons;
 
       buttons.push_back({ "√", 0, 4, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.apply([](value_t v) { return sqrt(v); }); } });
-      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 }, [](calc::Calculator& c) {
-        c.set(0); c.clearStacks();
+      buttons.push_back({ "C", 0, 6, 2, 2, { 200, 50, 50 }, [this](calc::Calculator& c) {
+        c.set(0); c.clearStacks(); digits.resetPointMode();
       } });
-      buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 }, [](calc::Calculator& c) { c.set(0); c.clearStacks(); c.clearMemory(); } });
+      buttons.push_back({ "AC", 0, 8, 2, 2, { 200, 50, 50 }, [this](calc::Calculator& c) { c.set(0); c.clearStacks(); c.clearMemory(); digits.resetPointMode(); } });
 
       buttons.push_back({ "MC", 0, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.clearMemory(); } });
       buttons.push_back({ "MR", 2, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { if (c.hasMemory()) c.set(c.memory()); } });
@@ -225,11 +290,11 @@ namespace gfx
       buttons.push_back({ "M+", 6, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.setMemory(c.memory() + c.value()); } });
       buttons.push_back({ "MS", 0, 2, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.setMemory(c.value()); } });
 
-      buttons.push_back({ "÷", 9, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 / v2; }); } });
-      buttons.push_back({ "×", 11, 0, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 * v2; }); } });
-      buttons.push_back({ "-", 11, 2, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 - v2; }); } });
-      buttons.push_back({ "+", 11, 4, 2, 4, { 200, 200, 200 }, [](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 + v2; }); } });
-      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 }, [](calc::Calculator& c) { c.applyFromStack(); } });
+      buttons.push_back({ "÷", 9, 0, 2, 2, { 200, 200, 200 }, [this](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 / v2; }); digits.reset(); } });
+      buttons.push_back({ "×", 11, 0, 2, 2, { 200, 200, 200 }, [this](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 * v2; }); digits.reset(); } });
+      buttons.push_back({ "-", 11, 2, 2, 2, { 200, 200, 200 }, [this](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 - v2; }); digits.reset(); } });
+      buttons.push_back({ "+", 11, 4, 2, 4, { 200, 200, 200 }, [this](calc::Calculator& c) { c.pushOperator([](value_t v1, value_t v2) { return v1 + v2; }); digits.reset(); } });
+      buttons.push_back({ "=", 11, 8, 2, 2, { 200, 200, 200 }, [this](calc::Calculator& c) { c.applyFromStack(); digits.reset(); } });
 
 
       LayoutHelper::addNumberGrid(buttons, 2, 2, 3, 2);

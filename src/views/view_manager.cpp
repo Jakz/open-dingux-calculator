@@ -13,7 +13,7 @@ ui::ViewManager::ViewManager() : SDL<ui::ViewManager, ui::ViewManager>(*this, *t
 {
   views[0] = new CalculatorView(this);
   views[1] = new GraphView(this);
-  view = views[1];
+  view = views[0];
 }
 
 void ui::ViewManager::deinit()
