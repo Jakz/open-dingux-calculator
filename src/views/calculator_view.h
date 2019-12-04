@@ -46,7 +46,7 @@ namespace ui
     void handleKeyboardEvent(const SDL_Event& event) override
     {
       const bool press = event.type == SDL_KEYDOWN;
-      
+
       switch (event.key.keysym.sym)
       {
       case SDLK_ESCAPE:
@@ -73,7 +73,11 @@ namespace ui
           layout.hoverNext(0, 1);
         buttonPressed = false;
         break;
-
+      case SDLK_SPACE:
+        calculator.set(0);
+        calculator.clearStacks();
+        layout.getDigits().resetPointMode();
+        break;
       case SDLK_LALT:
         if (!event.key.repeat)
         {
@@ -111,4 +115,3 @@ namespace ui
     }
   };
 }
-

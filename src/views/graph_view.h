@@ -12,11 +12,11 @@ namespace graph
   };
 
   struct bounds_t { float min, max; };
-  
+
   using function = std::function<float(float)>;
   using coordinate_remapping_function = std::function<point_t(point_t)>;
 
-  
+
   struct coordinate_mapper_builder
   {
     static constexpr double HEIGHT = 240.0;
@@ -47,7 +47,7 @@ namespace graph
 float ipart(float x) { return std::floor(x); }
 float fpart(float x) { return x - ipart(x); }
 float rfpart(float x) { return 1.0f - fpart(x); }
-void pixel(SDL_Surface* canvas, int x, int y, float b) 
+void pixel(SDL_Surface* canvas, int x, int y, float b)
 {
   if (IS_INSIDE(x, y))
   {
@@ -79,7 +79,7 @@ void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
   float gradient = dy / dx;
   if (dx == 0.0f) gradient = 1.0f;
 
-  float xend = std::round(x0);
+  float xend = round(x0);
   float yend = y0 + gradient * (xend - x0);
   float xgap = rfpart(x0 + 0.5f);
   int xpxl1 = xend;
@@ -98,7 +98,7 @@ void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
 
   float intery = yend + gradient;
 
-  xend = std::round(x1);
+  xend = round(x1);
   yend = y1 + gradient * (xend - x1);
   xgap = fpart(x1 + 0.5);
   int xpxl2 = xend;
@@ -133,7 +133,7 @@ void draw_line(SDL_Surface* canvas, float x0, float y0, float x1, float y1)
       intery += gradient;
     }
   }
-  
+
 }
 
 namespace ui
@@ -158,7 +158,7 @@ namespace ui
   };
 
   GraphView::GraphView(ViewManager* manager) : manager(manager), canvas(nullptr)
-  { 
+  {
   }
 
   void line(SDL_Surface* canvas, float x0, float y0, float x1, float y1, u32 color)
@@ -194,7 +194,7 @@ namespace ui
 
     graph::function vertical = graph::coordinate_mapper_builder().vertical(verticalBounds.min, verticalBounds.max);
     graph::function horizontal = graph::coordinate_mapper_builder().horizontal(horizontalBounds.min, horizontalBounds.max);
-    
+
     canvas = SDL_CreateRGBSurface(0, WIDTH, HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
     aaCanvas = SDL_CreateRGBSurface(0, WIDTH, HEIGHT, 32, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
 
@@ -217,8 +217,8 @@ namespace ui
     auto s = std::next(values.begin());
     for ( ; s != values.end(); ++f, ++s )
     {
-      int x1 = std::roundf(horizontal(f->first)), y1 = std::roundf(vertical(f->second));
-      int x2 = std::roundf(horizontal(s->first)), y2 = std::roundf(vertical(s->second));
+      int x1 = roundf(horizontal(f->first)), y1 = roundf(vertical(f->second));
+      int x2 = roundf(horizontal(s->first)), y2 = roundf(vertical(s->second));
       draw_line(canvas, x1, y1, x2, y2);
 
       /*
@@ -289,7 +289,7 @@ namespace ui
         if (r + g + b + a)
           AT(aaCanvas, x, y) = SDL_MapRGBA(aaCanvas->format, 255, 0, 0, a);
       }
-     
+
     for (int x = 0; x < WIDTH; ++x)
       for (int y = 0; y < HEIGHT; ++y)
       {
@@ -307,8 +307,8 @@ namespace ui
 
     if (!canvas)
       renderFunction([](float x) { return sqrt(abs(x))*3.24f; });
-   
-    
+
+
     SDL_SetRenderDrawColor(renderer, 255, 250, 237, 255);
     //SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);

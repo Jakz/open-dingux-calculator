@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <cassert>
+#include <vector>
 
 namespace gfx
 {
@@ -62,7 +63,7 @@ namespace gfx
   public:
     DigitInputManager() : _willRestartValue(false), _afterPointMode(false), _afterPointDigits(0) { }
 
-    
+
     void updateValue(int digit, calc::Calculator& calc)
     {
       if (_willRestartValue)
@@ -243,20 +244,22 @@ namespace gfx
   public:
     using value_t = calc::Calculator::value_t;
 
+    DigitInputManager& getDigits() { return digits; }
+
     void renderValue(char* dest, size_t length, ValueRenderMode mode, const calc::Calculator::value_t& value)
     {
       float_precision i;
       auto f = modf(value, &i);
-      
+
       if (value.get_mantissa().length() == value.exponent() - 1)
       {
         sprintf(dest, "%s", i.to_int_precision().toString().c_str());
       }
       else
-        sprintf(dest, "%s", value.toPrecision(std::min(value.get_mantissa().length() + (value.exponent() < 0 ? 1 : 0), 10ULL)).c_str());
+        sprintf(dest, "%s", value.toPrecision(std::min(value.get_mantissa().length() + (value.exponent() < 0 ? 1 : 0), (size_t)10)).c_str());
 
 
-        
+
       /*value_t truncated = trunc(value);
       if (truncated == value)
         sprintf(dest, "%.0f", value);
