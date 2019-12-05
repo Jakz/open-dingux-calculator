@@ -36,7 +36,7 @@ bool ui::ViewManager::loadData()
   textureUI = SDL_CreateTextureFromSurface(renderer, surfaceUI);
   SDL_FreeSurface(surfaceUI);
 
-  font = TTF_OpenFont(PREFIX "data/FreeSans.ttf", 16);
+  font = TTF_OpenFont(PREFIX "data/FiraMath.ttf", 16);
   _cache.init(font, getRenderer(), 128, 128);
 
   if (!font)

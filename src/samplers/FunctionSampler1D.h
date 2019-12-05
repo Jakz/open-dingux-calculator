@@ -23,7 +23,7 @@
 
 // Uncomment the following line to print out (lots!) of debugging
 // output that shows the subdivision process.
-#define DEBUG_SAMPLER
+//#define DEBUG_SAMPLER
 
 #ifdef DEBUG_SAMPLER
 # include <iostream>
@@ -105,7 +105,7 @@ namespace FunctionSampler1D {
 
     i = istart;
     real_t min_dx = dx * pow(0.5, (int)params.MaxRecursion);
-    while (i != iend6) {
+    while (i != iend) {
       value_list_iterator_t i_prev = i; i_prev--;
       value_list_iterator_t i_next = i; i_next++;
       real_t yp, y0, yn;

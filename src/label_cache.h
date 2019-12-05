@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cstdint>
 
-using u32 = uint32_t;
 
 template<bool USE_SURFACE>
 class LabelCache
@@ -93,9 +92,9 @@ private:
     return pair.first;
   }
 
-  std::pair<SDL_Rect, SDL_Texture*> computeStandalone(const std::string& text)
+  std::pair<SDL_Rect, SDL_Texture*> computeStandalone(const std::string& text, color_t color = color_t::black())
   {
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(_font, text.c_str(), { 0, 0, 0, 255 });
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(_font, text.c_str(), { color.r, color.g, color.b, color.a });
     SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
     SDL_FreeSurface(surface);
 
@@ -142,13 +141,13 @@ public:
     }
   }
 
-  typename standalone_map_t::const_iterator get(const std::string& text, standalone_key_t key)
+  typename standalone_map_t::const_iterator get(const std::string& text, standalone_key_t key, color_t color = color_t::black())
   {
     typename standalone_map_t::iterator it = _standaloneCache.find(key);
 
     if (it == _standaloneCache.end())
     {
-      auto texture = computeStandalone(text);
+      auto texture = computeStandalone(text, color);
       return _standaloneCache.emplace(std::make_pair(key, standalone_cache_entry_t{ text, texture.first, texture.second })).first;
     }
     else if (text != it->second.text)

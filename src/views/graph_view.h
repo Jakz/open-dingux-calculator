@@ -42,9 +42,8 @@ namespace graph
 }
 
 
-#define AT(canvas__, x__, y__) static_cast<u32*>(canvas__->pixels)[y__*canvas__->w + x__]
+#define AT(canvas__, x__, y__) static_cast<color_t*>(canvas__->pixels)[y__*canvas__->w + x__]
 #define IS_INSIDE(x__, y__) (x__ >= 0 && x__ < 320 && y__ >= 0 && y__ < 240)
-
 
 float ipart(float x) { return std::floor(x); }
 float fpart(float x) { return x - ipart(x); }
@@ -54,9 +53,13 @@ void pixel(SDL_Surface* canvas, int x, int y, float b, u32 color)
   if (IS_INSIDE(x, y))
   {
     int alpha = (int)(255 * b);
+    color_t& pixel = AT(canvas, x, y);
+    pixel.setRGB(color);
+    pixel.a = std::min(alpha + pixel.a, 255);
 
-    //if ((AT(canvas, x, y) & 0xff000000 >> 24) < alpha)
-      AT(canvas, x, y) = color + ((int)(255 * b) << 24);
+    /*if (AT(canvas, x, y).a < alpha)
+    {
+    }*/
   }
 }
 
@@ -279,10 +282,11 @@ namespace ui
     float value = 20.0f;
     setBounds({ -value, value }, { -value * ratio, value * ratio });
     //functions.emplace_back([](float x) { return abs(x); }, 0x00ff0000);
-    //functions.emplace_back([](float x) { return sin(x)*3; }, 0x0000ff00);
-    //functions.emplace_back([](float x) { return x*x; }, 0x000000ff);
-    //functions.emplace_back([](float x) { return x * x * x; }, 0x00ff0000);
-    functions.emplace_back([](float x) { return tan(x); }, 0x00ff8000);
+    functions.emplace_back([](float x) { return sin(x)*3 + cos(2*x)*4; }, 0x0000ff00);
+    functions.emplace_back([](float x) { return x*x; }, 0x000000ff);
+    functions.emplace_back([](float x) { return x * x * x; }, 0x00ff0000);
+    //functions.emplace_back([](float x) { return tan(x); }, 0x00ff8000);
+    functions.emplace_back([](float x) { return 1/x; }, 0x00ff8000);
 
   }
 
@@ -335,6 +339,9 @@ namespace ui
     for (const auto& function : functions)
       function.render(renderer, env);
 
+    auto label = gvm->cache()->get("𝑦 = 3sin(𝑥) + 4cos(2𝑥)", 8000, color_t(255, 128, 0));
+    gvm->blit(label->second.texture, label->second.rect, 0, 10);
+
     drawAxes();
   }
 
@@ -346,25 +353,29 @@ namespace ui
       {
       case SDLK_LEFT:
       {
-        setBounds({ env.bounds.hor.min - 1.0f, env.bounds.hor.max - 1.0f }, env.bounds.ver);
+        float scale = std::abs(env.bounds.hor.min - env.bounds.hor.max) / 20.0f;
+        setBounds({ env.bounds.hor.min - scale, env.bounds.hor.max - scale }, env.bounds.ver);
         dirty();
         break;
       }
       case SDLK_RIGHT:
       {
-        setBounds({ env.bounds.hor.min + 1.0f, env.bounds.hor.max + 1.0f }, env.bounds.ver);
+        float scale = std::abs(env.bounds.hor.min - env.bounds.hor.max) / 20.0f;
+        setBounds({ env.bounds.hor.min + scale, env.bounds.hor.max + scale }, env.bounds.ver);
         dirty();
         break;
       }
       case SDLK_UP:
       {
-        setBounds(env.bounds.hor, { env.bounds.ver.min + 1.0f, env.bounds.ver.max + 1.0f });
+        float scale = std::abs(env.bounds.hor.min - env.bounds.hor.max) / 20.0f;
+        setBounds(env.bounds.hor, { env.bounds.ver.min + scale, env.bounds.ver.max + scale });
         dirty();
         break;
       }
       case SDLK_DOWN:
       {
-        setBounds(env.bounds.hor, { env.bounds.ver.min - 1.0f, env.bounds.ver.max - 1.0f });
+        float scale = std::abs(env.bounds.hor.min - env.bounds.hor.max) / 20.0f;
+        setBounds(env.bounds.hor, { env.bounds.ver.min - scale, env.bounds.ver.max - scale });
         dirty();
         break;
       }
