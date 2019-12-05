@@ -18,6 +18,8 @@
 
 */
 
+#if __linux__
+
 #include <sys/resource.h>
 
 void setStackSize(size_t size)
@@ -41,9 +43,11 @@ void setStackSize(size_t size)
   }
 }
 
+#endif
+
 int main(int argc, char* argv[])
 {
-  setStackSize(16*1024*1024);
+  //setStackSize(16*1024*1024);
 
   ui::ViewManager ui;
 

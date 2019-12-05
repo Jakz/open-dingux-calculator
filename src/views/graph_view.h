@@ -1,3 +1,5 @@
+#pragma once
+
 #include "view_manager.h"
 
 #include "samplers/FunctionSampler1D.h"
@@ -160,23 +162,53 @@ namespace ui
       using value_list_t = std::list<std::pair<float, float>>;
       FunctionSampler1D::SampleFunctionParams params;
       params.InitialPoints = 50;
-      params.RangeThreshold = 0.0005f;
-      params.MaxRecursion = 50;
+      params.RangeThreshold = 0.005f;
+      params.MaxRecursion = 20;
       value_list_t values;
 
       FunctionSampler1D::SampleFunction(_function, env.bounds.hor.min, env.bounds.hor.max, params, values);
 
       u32* pixels = static_cast<u32*>(_canvas->pixels);
 
+      constexpr int LIMIT = HEIGHT * 3;
+      constexpr float ASYMPTOTE_THRESHOLD = HEIGHT*10;
+
+      bool skipNext = false;
       auto f = values.begin();
       auto s = std::next(values.begin());
       for (; s != values.end(); ++f, ++s)
       {
-        int x1 = roundf(env.mapper.hor(f->first)), y1 = roundf(env.mapper.ver(f->second));
-        int x2 = roundf(env.mapper.hor(s->first)), y2 = roundf(env.mapper.ver(s->second));
-
-        if (!IS_INSIDE(x1, y1) && !IS_INSIDE(x2, y2))
+        if (skipNext)
+        {
+          skipNext = false;
           continue;
+        }
+
+        float fx1 = f->first, fy1 = f->second;
+        float fx2 = s->first, fy2 = s->second;
+        
+        if (isinf(fy1)) 
+          fy1 = std::copysign(INFINITY, fy2);
+        if (isinf(fy2)) 
+          fy2 = std::copysign(INFINITY, fy1);
+        
+        float x1 = env.mapper.hor(fx1), y1 = env.mapper.ver(fy1);
+        float x2 = env.mapper.hor(fx2), y2 = env.mapper.ver(fy2);
+
+        if (!isinf(fy1) && !isinf(fy2) && (abs(y1 - y2) > ASYMPTOTE_THRESHOLD))
+          continue;
+
+
+        if (y1 > LIMIT) y1 = LIMIT;
+        else if (y1 < -LIMIT) y1 = -LIMIT;
+
+        if (y2 > LIMIT) y2 = LIMIT;
+        else if (y2 < -LIMIT) y2 = -LIMIT;
+
+        //TODO: should check that there is no intersection
+        /*if (!IS_INSIDE(x1, y1) && !IS_INSIDE(x2, y2))
+          continue;
+          */
 
         draw_line(_canvas, x1, y1, x2, y2, _color);
       }
@@ -247,9 +279,11 @@ namespace ui
     float value = 20.0f;
     setBounds({ -value, value }, { -value * ratio, value * ratio });
     //functions.emplace_back([](float x) { return abs(x); }, 0x00ff0000);
-    functions.emplace_back([](float x) { return sin(x)*3; }, 0x0000ff00);
-    functions.emplace_back([](float x) { return x*x; }, 0x000000ff);
-    functions.emplace_back([](float x) { return x * x * x; }, 0x00ff0000);
+    //functions.emplace_back([](float x) { return sin(x)*3; }, 0x0000ff00);
+    //functions.emplace_back([](float x) { return x*x; }, 0x000000ff);
+    //functions.emplace_back([](float x) { return x * x * x; }, 0x00ff0000);
+    functions.emplace_back([](float x) { return tan(x); }, 0x00ff8000);
+
   }
 
   void GraphView::setBounds(graph::bounds_t hor, graph::bounds_t ver)
@@ -306,56 +340,59 @@ namespace ui
 
   void GraphView::handleKeyboardEvent(const SDL_Event& event)
   {
-    switch (event.key.keysym.sym)
+    if (event.type == SDL_KEYDOWN)
     {
-    case SDLK_LEFT:
-    {
-      setBounds({ env.bounds.hor.min - 1.0f, env.bounds.hor.max - 1.0f }, env.bounds.ver);
-      dirty();
-      break;
-    }
-    case SDLK_RIGHT:
-    {
-      setBounds({ env.bounds.hor.min + 1.0f, env.bounds.hor.max + 1.0f }, env.bounds.ver);
-      dirty();
-      break;
-    }
-    case SDLK_UP:
-    {
-      setBounds(env.bounds.hor, { env.bounds.ver.min + 1.0f, env.bounds.ver.max + 1.0f });
-      dirty();
-      break;
-    }
-    case SDLK_DOWN:
-    {
-      setBounds(env.bounds.hor, { env.bounds.ver.min - 1.0f, env.bounds.ver.max - 1.0f });
-      dirty();
-      break;
-    }
-    case SDLK_TAB:
-    {
-      setBounds(
-        { env.bounds.hor.min * 1.1f, env.bounds.hor.max * 1.1f },
-        { env.bounds.ver.min * 1.1f, env.bounds.ver.max * 1.1f }
-      );
-      dirty();
+      switch (event.key.keysym.sym)
+      {
+      case SDLK_LEFT:
+      {
+        setBounds({ env.bounds.hor.min - 1.0f, env.bounds.hor.max - 1.0f }, env.bounds.ver);
+        dirty();
+        break;
+      }
+      case SDLK_RIGHT:
+      {
+        setBounds({ env.bounds.hor.min + 1.0f, env.bounds.hor.max + 1.0f }, env.bounds.ver);
+        dirty();
+        break;
+      }
+      case SDLK_UP:
+      {
+        setBounds(env.bounds.hor, { env.bounds.ver.min + 1.0f, env.bounds.ver.max + 1.0f });
+        dirty();
+        break;
+      }
+      case SDLK_DOWN:
+      {
+        setBounds(env.bounds.hor, { env.bounds.ver.min - 1.0f, env.bounds.ver.max - 1.0f });
+        dirty();
+        break;
+      }
+      case SDLK_TAB:
+      {
+        setBounds(
+          { env.bounds.hor.min * 1.1f, env.bounds.hor.max * 1.1f },
+          { env.bounds.ver.min * 1.1f, env.bounds.ver.max * 1.1f }
+        );
+        dirty();
 
-      break;
-    }
-    case SDLK_BACKSPACE:
-    {
-      setBounds(
-        { env.bounds.hor.min * 0.9f, env.bounds.hor.max * 0.9f },
-        { env.bounds.ver.min * 0.9f, env.bounds.ver.max * 0.9f }
-      );
-      dirty();
+        break;
+      }
+      case SDLK_BACKSPACE:
+      {
+        setBounds(
+          { env.bounds.hor.min * 0.9f, env.bounds.hor.max * 0.9f },
+          { env.bounds.ver.min * 0.9f, env.bounds.ver.max * 0.9f }
+        );
+        dirty();
 
-      break;
-    }
+        break;
+      }
 
-    case SDLK_ESCAPE:
-      gvm->exit();
-      break;
+      case SDLK_ESCAPE:
+        gvm->exit();
+        break;
+      }
     }
   }
 

@@ -23,7 +23,7 @@
 
 // Uncomment the following line to print out (lots!) of debugging
 // output that shows the subdivision process.
-// #define DEBUG_SAMPLER
+#define DEBUG_SAMPLER
 
 #ifdef DEBUG_SAMPLER
 # include <iostream>
@@ -53,8 +53,15 @@ namespace FunctionSampler1D {
     SampleFunctionParams() :
       InitialPoints(25),
       RangeThreshold(0.005f),
-      MaxBend(10.0*M_PI / 180.0f),
-      MaxRecursion(20) {}
+      MaxBend(cos(20.0*M_PI / 180.0f)),
+      MaxRecursion(20) {
+    
+    }
+
+    void setMaxBend(float v)
+    {
+      MaxBend = cos(v);
+    }
   };
 
 
@@ -98,7 +105,7 @@ namespace FunctionSampler1D {
 
     i = istart;
     real_t min_dx = dx * pow(0.5, (int)params.MaxRecursion);
-    while (i != iend) {
+    while (i != iend6) {
       value_list_iterator_t i_prev = i; i_prev--;
       value_list_iterator_t i_next = i; i_next++;
       real_t yp, y0, yn;
@@ -155,7 +162,7 @@ namespace FunctionSampler1D {
 #if defined(DEBUG_SAMPLER)
       std::cerr << "*  cosq=" << cosq << std::endl;
 #endif
-      if ((xn - x0) < DBL_EPSILON || (x0 - xp) < DBL_EPSILON) {
+      if ((xn - x0) < FLT_EPSILON || (x0 - xp) < FLT_EPSILON) {
 #if defined(DEBUG_SAMPLER)
         std::cerr << "*  Resolution too fine" << std::endl;
 #endif
@@ -167,7 +174,7 @@ namespace FunctionSampler1D {
       // OR if the subdivisional resolution difference is greater than 3:1
       // In other words, the resolution cannot change by more than one
       // level at a time
-      if ((cosq < cos(params.MaxBend)) || (dx1 > 3 * dx0) || (dx0 > 3 * dx1)) {
+      if ((cosq < params.MaxBend) || (dx1 > 3 * dx0) || (dx0 > 3 * dx1)) {
         if (x0 - xp > xn - x0) {
           // Add point before the current iterator
           real_t x_new = 0.5*(xp + x0);
@@ -202,5 +209,52 @@ namespace FunctionSampler1D {
   }
 
 }; // end namespace FunctionSampler1D
+
+template<typename real_t>
+class FunctionSampler
+{
+public:
+  using values_list_t = std::list<std::pair<real_t, real_t>>;
+private:
+  std::function<real_t(real_t)> function;
+
+
+public:
+
+  values_list_t divide(size_t depth, real_t epsilon, real_t a, real_t c, values_list_t& values, typename values_list_t::iterator it)
+  {
+    const real_t b = (a + c) / 2;
+    real_t x[] = { a, (a + b) / 2, b, (b + c) / 2, c }, y[5];
+    for (size_t i = 0; i < 5; ++i) y[i] = function(x[i]);
+
+    size_t badness = 0;
+    for (size_t i = 0; i <= 2; ++i)
+    {
+      if (y[i + 1] > y[i] && y[i + 1] > y[i + 2])
+        ++badness;
+      else if (y[i + 1] < y[i] && y[i + 1] < y[i + 2])
+        --badness;
+    }
+
+    for (size_t i = 0; i < 5; ++i)
+      if (isfinite(y[i]))
+        ++badness;
+
+    if (badness > 2)
+    {
+      auto firstHalf = divide(depth - 1, epsilon * 2, a, b, values, it);
+      auto secondHalf = divide(depth - 1, epsilon * 2, b, c, values, it);
+      values.insert(it, std::next(secondHalf.begin()), secondHalf.end());
+      values.insert(it, firstHalf.begin(), firstHalf.end());
+    }
+
+    return values_list_t();
+  }
+  
+
+
+};
+
+template class FunctionSampler<float>;
 
 #endif // FUNCTION_SAMPLER_1D_H
