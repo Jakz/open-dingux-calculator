@@ -34,7 +34,7 @@ protected:
 
 
 public:
-  SDL(EventHandler& eventHandler, Renderer& loopRenderer) : eventHandler(eventHandler), loopRenderer(loopRenderer), 
+  SDL(EventHandler& eventHandler, Renderer& loopRenderer) : eventHandler(eventHandler), loopRenderer(loopRenderer),
     window(nullptr), renderer(nullptr), willQuit(false), ticks(0)
   {
 
@@ -43,7 +43,7 @@ public:
   bool init();
   void deinit();
   void capFPS();
-  
+
   void loop();
   void handleEvents();
 
@@ -73,13 +73,13 @@ bool SDL<EventHandler, Renderer>::init()
     printf("Error on IMG_Init().\n");
     return false;
   }
-    
+
   if (TTF_Init())
   {
     printf("Error on TTF_Init().\n");
     return false;
   }
-  
+
   // SDL_WINDOW_FULLSCREEN
 #if defined(WINDOW_SCALE)
   window = SDL_CreateWindow("ODCalc v0.1", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 320 * WINDOW_SCALE, 240 * WINDOW_SCALE, SDL_WINDOW_OPENGL);
@@ -100,7 +100,7 @@ void SDL<EventHandler, Renderer>::loop()
 {
   while (!willQuit)
   {
-#if false defined(WINDOW_SCALE)
+#if false && defined(WINDOW_SCALE)
     SDL_SetRenderTarget(renderer, buffer);
     loopRenderer.render();
     SDL_SetRenderTarget(renderer, nullptr);
@@ -141,14 +141,14 @@ void SDL<EventHandler, Renderer>::deinit()
 {
   TTF_Quit();
   IMG_Quit();
-  
+
 #if defined(WINDOW_SCALE)
   SDL_DestroyTexture(buffer);
 #endif
 
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
-  
+
   SDL_Quit();
 }
 

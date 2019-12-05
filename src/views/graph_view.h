@@ -204,7 +204,7 @@ namespace ui
       if (_dirty)
       {
         SDL_FillRect(_canvas, nullptr, 0);
-        repaint(env); 
+        repaint(env);
 
         if (_texture)
           SDL_DestroyTexture(_texture);
@@ -219,7 +219,7 @@ namespace ui
 
     }
   };
-  
+
   class GraphView : public View
   {
   private:
@@ -246,11 +246,10 @@ namespace ui
     float ratio = HEIGHT / (float)WIDTH;
     float value = 20.0f;
     setBounds({ -value, value }, { -value * ratio, value * ratio });
-    functions.emplace_back([](float x) { return abs(x); }, 0x00ff0000);
+    //functions.emplace_back([](float x) { return abs(x); }, 0x00ff0000);
     functions.emplace_back([](float x) { return sin(x)*3; }, 0x0000ff00);
     functions.emplace_back([](float x) { return x*x; }, 0x000000ff);
-    functions.emplace_back([](float x) { return x * x * x; }, 0x00ff8000);
-
+    functions.emplace_back([](float x) { return x * x * x; }, 0x00ff0000);
   }
 
   void GraphView::setBounds(graph::bounds_t hor, graph::bounds_t ver)
@@ -272,7 +271,7 @@ namespace ui
   {
     SDL_SetRenderDrawBlendMode(gvm->getRenderer(), SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(gvm->getRenderer(), 0, 0, 0, 60);
-    
+
     const float LX = 3, LY = 6;
 
     float sx = env.mapper.hor(0.0f);
@@ -298,7 +297,7 @@ namespace ui
 
     SDL_SetRenderDrawColor(renderer, 255, 250, 237, 255);
     SDL_RenderClear(renderer);
-   
+
     for (const auto& function : functions)
       function.render(renderer, env);
 
@@ -333,6 +332,30 @@ namespace ui
       dirty();
       break;
     }
+    case SDLK_TAB:
+    {
+      setBounds(
+        { env.bounds.hor.min * 1.1f, env.bounds.hor.max * 1.1f },
+        { env.bounds.ver.min * 1.1f, env.bounds.ver.max * 1.1f }
+      );
+      dirty();
+
+      break;
+    }
+    case SDLK_BACKSPACE:
+    {
+      setBounds(
+        { env.bounds.hor.min * 0.9f, env.bounds.hor.max * 0.9f },
+        { env.bounds.ver.min * 0.9f, env.bounds.ver.max * 0.9f }
+      );
+      dirty();
+
+      break;
+    }
+
+    case SDLK_ESCAPE:
+      gvm->exit();
+      break;
     }
   }
 
