@@ -6,16 +6,17 @@
 
 namespace ui
 {
+  template<typename LayoutType>
   class CalculatorView : public ui::ViewManager::view_t
   {
   private:
     ui::ViewManager* gvm;
     calc::Calculator calculator;
-    gfx::EasyLayout layout;
+    LayoutType layout;
     bool buttonPressed;
 
   public:
-    CalculatorView(ui::ViewManager* gvm) : gvm(gvm), buttonPressed(false) { }
+    CalculatorView(ui::ViewManager* gvm) : gvm(gvm), buttonPressed(false), layout(gvm) { }
 
     void render() override
     {
@@ -27,16 +28,17 @@ namespace ui
       for (auto it = layout.begin(); it != layout.end(); ++it)
       {
         const auto& button = *it;
-        gvm->renderButton(button.gfx.x, button.gfx.y, button.gfx.w, button.gfx.h, button.label, button.color, { buttonPressed && it == layout.selected(), it == layout.selected() });
+        gvm->renderButton(button.gfx.x, button.gfx.y, button.gfx.w, button.gfx.h, button.label, button.font, button.color, { buttonPressed && it == layout.selected(), it == layout.selected() });
       }
 
-      gvm->renderButtonBackground(18, 20, 284, 30, 0, 0);
+      const auto& dbounds = layout.displayBounds();
+      gvm->renderButtonBackground(dbounds.x, dbounds.y, dbounds.w, dbounds.h, 0, 0);
 
       static constexpr u32 VALUE_LABEL_KEY = 123;
       static char buffer[512];
-      layout.renderValue(buffer, 512, gfx::ValueRenderMode::DECIMAL, calculator.value());
+      layout.renderValue(buffer, 512, calculator.value());
       auto texture = gvm->cache()->get(buffer, VALUE_LABEL_KEY, gvm->font());
-      SDL_Rect dest = { 288 - texture->second.rect.w, 25, texture->second.rect.w, texture->second.rect.h };
+      SDL_Rect dest = { dbounds.x + dbounds.w - 14, dbounds.y + 5, texture->second.rect.w, texture->second.rect.h };
       SDL_RenderCopy(renderer, texture->second.texture, nullptr, &dest);
 
       if (calculator.hasMemory())

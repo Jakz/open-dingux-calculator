@@ -3,17 +3,9 @@
 #include "calculator_view.h"
 #include "graph_view.h"
 
-#ifdef _WIN32
-#define PREFIX  "../../../"
-#else
-#define PREFIX ""
-#endif
-
 ui::ViewManager::ViewManager() : SDL<ui::ViewManager, ui::ViewManager>(*this, *this), textureUI(nullptr), _font(nullptr), _tinyFont(nullptr)
 {
-  views[0] = new CalculatorView(this);
-  views[1] = new GraphView(this);
-  view = views[1];
+
 }
 
 void ui::ViewManager::deinit()
@@ -26,7 +18,13 @@ void ui::ViewManager::deinit()
 
 bool ui::ViewManager::loadData()
 {
-  SDL_Surface* surfaceUI = IMG_Load(PREFIX "data/ui.png");
+#ifdef _WIN32
+  const std::string prefix = "../../../";
+#else
+  const std::string prefix = "";
+#endif
+
+  SDL_Surface* surfaceUI = IMG_Load((prefix + "data/ui.png").c_str());
 
   if (!surfaceUI)
   {
@@ -37,8 +35,11 @@ bool ui::ViewManager::loadData()
   textureUI = SDL_CreateTextureFromSurface(renderer, surfaceUI);
   SDL_FreeSurface(surfaceUI);
 
-  _font = TTF_OpenFont(PREFIX "data/FiraMath.ttf", 16);
-  _tinyFont = TTF_OpenFont(PREFIX "data/FiraMath.ttf", 10);
+  const std::string fontName = "FreeSans.ttf";
+
+
+  _font = TTF_OpenFont((prefix + "data/" + fontName).c_str(), 16);
+  _tinyFont = TTF_OpenFont((prefix + "data/" + fontName).c_str(), 10);
 
   if (!_font || !_tinyFont)
   {
@@ -47,6 +48,11 @@ bool ui::ViewManager::loadData()
   }
 
   _cache.init(getRenderer(), 128, 128);
+
+  views[0] = new CalculatorView<gfx::EasyLayout>(this);
+  views[1] = new CalculatorView<gfx::ScientificLayout>(this);
+  views[2] = new GraphView(this);
+  view = views[1];
 
   return true;
 }
@@ -93,7 +99,7 @@ void ui::ViewManager::renderButtonBackground(int x, int y, int w, int h, int bx,
   blit(textureUI, BX + M, BY + M, K, K, x + S, y + S, w - S * 2, h - S * 2); /* center */
 }
 
-void ui::ViewManager::renderButton(int x, int y, int w, int h, const std::string& label, SDL_Color color, ButtonStyle style)
+void ui::ViewManager::renderButton(int x, int y, int w, int h, const std::string& label, TTF_Font* font, SDL_Color color, ButtonStyle style)
 {
   assert(w >= 16 && h >= 16);
 
@@ -109,6 +115,6 @@ void ui::ViewManager::renderButton(int x, int y, int w, int h, const std::string
     renderButtonBackground(x, y, w, h, 0, 16);
   }
 
-  const SDL_Rect& rect = _cache.get(label, _font)->second;
+  const SDL_Rect& rect = _cache.get(label, font)->second;
   blit(_cache.texture(), rect, x + w / 2 - rect.w / 2 + (style.pressed ? 1 : 0), y + h / 2 - rect.h / 2 + (style.pressed ? 1 : 0));
 }

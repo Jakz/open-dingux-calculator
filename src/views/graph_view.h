@@ -2,21 +2,22 @@
 
 #include "view_manager.h"
 
-#include "samplers/FunctionSampler1D.h"
 
 #include <cmath>
 
 namespace graph
 {
+  template<typename real_t = float>
   struct point_t
   {
-    float x, y;
+    real_t x, y;
+    point_t(real_t x, real_t y) : x(x), y(y) { }
   };
 
   struct bounds_t { float min, max; };
 
   using function = std::function<float(float)>;
-  using coordinate_remapping_function = std::function<point_t(point_t)>;
+  using coordinate_remapping_function = std::function<point_t<>(point_t<>)>;
 
 
   struct coordinate_mapper_builder
@@ -41,6 +42,7 @@ namespace graph
   };
 }
 
+#include "samplers/FunctionSampler1D.h"
 
 #define AT(canvas__, x__, y__) static_cast<color_t*>(canvas__->pixels)[y__*canvas__->w + x__]
 #define IS_INSIDE(x__, y__) (x__ >= 0 && x__ < 320 && y__ >= 0 && y__ < 240)
@@ -160,21 +162,51 @@ namespace ui
     graph::function _function;
     u32 _color;
 
+    void refineFunction(std::list<graph::point_t<>>& points) const
+    {
+      std::list<graph::point_t<>>::iterator prev = points.begin(), it = points.begin();
+      ++it;
+      for ( ; it != points.end(); ++prev, ++it)
+      {
+        /*if (prev->x < -1.0f && it->x > -1.0f)
+        {
+          it = points.insert(it, { -1.0f, +INFINITY });
+          prev = points.insert(it, { -1.0f, -INFINITY });;
+          it = std::next(prev);
+        }
+        if (prev->x < 1.0f && it->x > 1.0f)
+        {
+          it = points.insert(it, { 1.0f, -INFINITY });
+          prev = points.insert(it, { 1.0f, +INFINITY });;
+          it = std::next(prev);
+        }*/
+
+        if (isinf(it->y))
+        {
+          it->y = std::copysignf(INFINITY, prev->y);
+          it = points.insert(it, { it->x, std::copysign(INFINITY, std::next(it)->y) });
+          ++it;
+        }
+        
+      }
+    }
+
     void repaint(const RenderEnvironment& env) const
     {
-      using value_list_t = std::list<std::pair<float, float>>;
+      using value_list_t = std::list<graph::point_t<>>;
       FunctionSampler1D::SampleFunctionParams params;
-      params.InitialPoints = 50;
-      params.RangeThreshold = 0.005f;
-      params.MaxRecursion = 20;
+      params.InitialPoints = 200;
+      params.RangeThreshold = (env.bounds.ver.max - env.bounds.ver.min) / (HEIGHT*10);
+      params.MaxRecursion = 50;
       value_list_t values;
 
       FunctionSampler1D::SampleFunction(_function, env.bounds.hor.min, env.bounds.hor.max, params, values);
+      refineFunction(values);
 
       u32* pixels = static_cast<u32*>(_canvas->pixels);
 
       constexpr int LIMIT = HEIGHT * 3;
-      constexpr float ASYMPTOTE_THRESHOLD = HEIGHT*10;
+      constexpr float ASYMPTOTE_THRESHOLD = HEIGHT;
 
       bool skipNext = false;
       auto f = values.begin();
@@ -187,13 +219,17 @@ namespace ui
           continue;
         }
 
-        float fx1 = f->first, fy1 = f->second;
-        float fx2 = s->first, fy2 = s->second;
-        
+        float fx1 = f->x, fy1 = f->y;
+        float fx2 = s->x, fy2 = s->y;
+        /*
         if (isinf(fy1)) 
           fy1 = std::copysign(INFINITY, fy2);
         if (isinf(fy2)) 
           fy2 = std::copysign(INFINITY, fy1);
+          */
+
+        if (isinf(fy1) && isinf(fy2))
+          continue;
         
         float x1 = env.mapper.hor(fx1), y1 = env.mapper.ver(fy1);
         float x2 = env.mapper.hor(fx2), y2 = env.mapper.ver(fy2);
@@ -214,6 +250,9 @@ namespace ui
           */
 
         draw_line(_canvas, x1, y1, x2, y2, _color);
+
+        /*if (IS_INSIDE((int)x1, (int)y1))
+          AT(_canvas, (int)x1, (int)y1) = 0xff000000;*/
       }
     }
 
@@ -261,6 +300,7 @@ namespace ui
     ViewManager* gvm;
 
     void drawAxes();
+    void drawTicks();
 
     RenderEnvironment env;
     std::vector<RenderedFunction> functions;
@@ -281,12 +321,14 @@ namespace ui
     float ratio = HEIGHT / (float)WIDTH;
     float value = 20.0f;
     setBounds({ -value, value }, { -value * ratio, value * ratio });
-    //functions.emplace_back([](float x) { return abs(x); }, 0x00ff0000);
-    functions.emplace_back([](float x) { return sin(x)*3 + cos(2*x)*4; }, 0x0000ff00);
-    functions.emplace_back([](float x) { return x*x; }, 0x000000ff);
-    functions.emplace_back([](float x) { return x * x * x; }, 0x00ff0000);
+    //functions.emplace_back([](float x) { return log(x); }, 0x00ff0000);
+    //functions.emplace_back([](float x) { return 1/(x*x); }, 0x00ff0000);
+
+    //functions.emplace_back([](float x) { return sin(x)*3 + cos(2*x)*4; }, 0x0000ff00);
+    //functions.emplace_back([](float x) { return x*x; }, 0x000000ff);
+    //functions.emplace_back([](float x) { return x * x * x; }, 0x00ff0000);
     //functions.emplace_back([](float x) { return tan(x); }, 0x00ff8000);
-    functions.emplace_back([](float x) { return 1/x; }, 0x00ff8000);
+    functions.emplace_back([](float x) { return (x*x)/(x*x-1); }, 0x00ff8000);
 
   }
 
@@ -329,6 +371,22 @@ namespace ui
     }
   }
 
+  void GraphView::drawTicks()
+  {
+    SDL_SetRenderDrawBlendMode(gvm->getRenderer(), SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(gvm->getRenderer(), 0, 0, 0, 60);
+
+    const float LEN = 2;
+
+    float sy = env.mapper.ver(0.0f);
+
+    if (sy >= 0 && sy < HEIGHT)
+    {
+      for (int sx = (int)env.bounds.hor.min; sx < env.bounds.hor.max; ++sx)
+        SDL_RenderDrawLine(gvm->getRenderer(), env.mapper.hor(sx), sy - LEN / 2, env.mapper.hor(sx), sy + LEN / 2);
+    }
+  }
+
   void GraphView::render()
   {
     auto* renderer = gvm->getRenderer();
@@ -339,10 +397,25 @@ namespace ui
     for (const auto& function : functions)
       function.render(renderer, env);
 
-    auto label = gvm->cache()->get("𝑦 = 3sin(𝑥) + 4cos(2𝑥)", 8000, gvm->tinyFont(), color_t(255, 128, 0));
-    gvm->blit(label->second.texture, label->second.rect, 0, 10);
+    /*auto label = gvm->cache()->get("𝑦 = 3sin(𝑥) + 4cos(2𝑥)", 8000, gvm->tinyFont(), color_t(255, 128, 0));
+    gvm->blit(label->second.texture, label->second.rect, 0, 10);*/
+
+    static char buffer[128];
+    {
+      sprintf(buffer, "%2.2f, %2.2f", env.bounds.hor.min, env.bounds.ver.max);
+      auto label = gvm->cache()->get(buffer, 8000, gvm->tinyFont(), color_t(0, 0, 0, 60));
+      SDL_SetTextureBlendMode(label->second.texture, SDL_BLENDMODE_BLEND);
+      gvm->blit(label->second.texture, label->second.rect, 2, 2);
+    }
+    {
+      sprintf(buffer, "%2.2f, %2.2f", env.bounds.hor.max, env.bounds.ver.min);
+      auto label = gvm->cache()->get(buffer, 8000, gvm->tinyFont(), color_t(0, 0, 0, 60));
+      SDL_SetTextureBlendMode(label->second.texture, SDL_BLENDMODE_BLEND);
+      gvm->blit(label->second.texture, label->second.rect, WIDTH-2-label->second.rect.w, HEIGHT-2-label->second.rect.h);
+    }
 
     drawAxes();
+    drawTicks();
   }
 
   void GraphView::handleKeyboardEvent(const SDL_Event& event)

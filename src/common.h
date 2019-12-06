@@ -24,6 +24,7 @@ union color_t
   u32 data;
 
   inline color_t(u32 argb) : data(argb) { }
+  inline color_t(u32 r, u32 g, u32 b, u32 a) : r(r), g(g), b(b), a(a) { }
   inline color_t(u32 r, u32 g, u32 b) : r(r), g(g), b(b), a(255) { }
   inline color_t& operator=(u32 data) { this->data = data; return *this; }
   void setRGB(color_t rgb) { data = (data & 0xff000000) | (rgb.data & 0x00ffffff); }
@@ -35,4 +36,6 @@ union color_t
   }
 
   inline static color_t black() { return color_t(0xff000000); }
+  inline static color_t white() { return color_t(0xffffffff); }
+
 };

@@ -151,7 +151,7 @@ public:
     else if (text != it->second.text)
     {
       SDL_DestroyTexture(it->second.texture);
-      auto texture = computeStandalone(text, font);
+      auto texture = computeStandalone(text, font, color);
       it->second = { text, texture.first, texture.second };
       return it;
     }

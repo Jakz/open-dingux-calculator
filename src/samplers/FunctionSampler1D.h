@@ -80,10 +80,10 @@ namespace FunctionSampler1D {
     FunctionType f,
     real_t x0, real_t x1,
     const SampleFunctionParams &params,
-    std::list<std::pair<real_t, typename FunctionType::result_type> > &values
+    std::list<graph::point_t<real_t>> &values
   ) {
-    typedef typename FunctionType::result_type function_result;
-    typedef typename std::pair<real_t, function_result> list_element_t;
+    using function_result = real_t;
+    using list_element_t = graph::point_t<real_t>;
     typedef typename std::list<list_element_t> value_list_t;
     typedef typename value_list_t::iterator value_list_iterator_t;
     values.erase(values.begin(), values.end());
@@ -110,9 +110,9 @@ namespace FunctionSampler1D {
       value_list_iterator_t i_next = i; i_next++;
       real_t yp, y0, yn;
       real_t xp, x0, xn;
-      yp = real_t(i_prev->second); xp = i_prev->first;
-      y0 = real_t(i->second); x0 = i->first;
-      yn = real_t(i_next->second); xn = i_next->first;
+      yp = i_prev->y; xp = i_prev->x;
+      y0 = i->y; x0 = i->x;
+      yn = i_next->y; xn = i_next->x;
 
 #if defined(DEBUG_SAMPLER)
       std::cerr << "* x0=" << x0 << ", y0=" << y0 << std::endl;
@@ -214,7 +214,7 @@ template<typename real_t>
 class FunctionSampler
 {
 public:
-  using values_list_t = std::list<std::pair<real_t, real_t>>;
+  using values_list_t = std::list<graph::point_t<real_t>>;
 private:
   std::function<real_t(real_t)> function;
 
