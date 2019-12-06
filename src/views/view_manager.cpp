@@ -9,7 +9,7 @@
 #define PREFIX ""
 #endif
 
-ui::ViewManager::ViewManager() : SDL<ui::ViewManager, ui::ViewManager>(*this, *this), textureUI(nullptr), font(nullptr)
+ui::ViewManager::ViewManager() : SDL<ui::ViewManager, ui::ViewManager>(*this, *this), textureUI(nullptr), _font(nullptr), _tinyFont(nullptr)
 {
   views[0] = new CalculatorView(this);
   views[1] = new GraphView(this);
@@ -18,7 +18,8 @@ ui::ViewManager::ViewManager() : SDL<ui::ViewManager, ui::ViewManager>(*this, *t
 
 void ui::ViewManager::deinit()
 {
-  TTF_CloseFont(font);
+  TTF_CloseFont(_font);
+  TTF_CloseFont(_tinyFont);
   SDL_DestroyTexture(textureUI);
   SDL::deinit();
 }
@@ -36,14 +37,16 @@ bool ui::ViewManager::loadData()
   textureUI = SDL_CreateTextureFromSurface(renderer, surfaceUI);
   SDL_FreeSurface(surfaceUI);
 
-  font = TTF_OpenFont(PREFIX "data/FiraMath.ttf", 16);
-  _cache.init(font, getRenderer(), 128, 128);
+  _font = TTF_OpenFont(PREFIX "data/FiraMath.ttf", 16);
+  _tinyFont = TTF_OpenFont(PREFIX "data/FiraMath.ttf", 10);
 
-  if (!font)
+  if (!_font || !_tinyFont)
   {
     printf("Error while loading font: %s\n", TTF_GetError());
     return false;
   }
+
+  _cache.init(getRenderer(), 128, 128);
 
   return true;
 }
@@ -106,6 +109,6 @@ void ui::ViewManager::renderButton(int x, int y, int w, int h, const std::string
     renderButtonBackground(x, y, w, h, 0, 16);
   }
 
-  const SDL_Rect& rect = _cache.get(label)->second;
+  const SDL_Rect& rect = _cache.get(label, _font)->second;
   blit(_cache.texture(), rect, x + w / 2 - rect.w / 2 + (style.pressed ? 1 : 0), y + h / 2 - rect.h / 2 + (style.pressed ? 1 : 0));
 }

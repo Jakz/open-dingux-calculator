@@ -24,16 +24,15 @@ private:
   int _currentY, _currentX;
   int _maxY;
 
-  TTF_Font* _font;
   SDL_Texture* _texture;
   SDL_Surface* _surface;
   SDL_Renderer* _renderer;
   map_t _cache;
   standalone_map_t _standaloneCache;
 
-  map_t::const_iterator compute(const std::string& text)
+  map_t::const_iterator compute(const std::string& text, TTF_Font* font)
   {
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(_font, text.c_str(), { 0, 0, 0, 255 });
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), { 0, 0, 0, 255 });
 
     /* if it doesn't fit current row start a new one */
     if (_currentX + surface->w > _w)
@@ -92,9 +91,9 @@ private:
     return pair.first;
   }
 
-  std::pair<SDL_Rect, SDL_Texture*> computeStandalone(const std::string& text, color_t color = color_t::black())
+  std::pair<SDL_Rect, SDL_Texture*> computeStandalone(const std::string& text, TTF_Font* font, color_t color = color_t::black())
   {
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(_font, text.c_str(), { color.r, color.g, color.b, color.a });
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), { color.r, color.g, color.b, color.a });
     SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
     SDL_FreeSurface(surface);
 
@@ -106,14 +105,13 @@ private:
   }
 
 public:
-  LabelCache() : _font(nullptr), _texture(nullptr), _w(0), _h(0), _maxY(0), _currentY(0), _currentX(0)
+  LabelCache() : _texture(nullptr), _w(0), _h(0), _maxY(0), _currentY(0), _currentX(0)
   {
 
   }
 
-  void init(TTF_Font* font, SDL_Renderer* renderer, int w, int h)
+  void init(SDL_Renderer* renderer, int w, int h)
   {
-    _font = font;
     //_renderer = renderer;
     _w = w;
     _h = h;
@@ -141,19 +139,19 @@ public:
     }
   }
 
-  typename standalone_map_t::const_iterator get(const std::string& text, standalone_key_t key, color_t color = color_t::black())
+  typename standalone_map_t::const_iterator get(const std::string& text, standalone_key_t key, TTF_Font* font, color_t color = color_t::black())
   {
     typename standalone_map_t::iterator it = _standaloneCache.find(key);
 
     if (it == _standaloneCache.end())
     {
-      auto texture = computeStandalone(text, color);
+      auto texture = computeStandalone(text, font, color);
       return _standaloneCache.emplace(std::make_pair(key, standalone_cache_entry_t{ text, texture.first, texture.second })).first;
     }
     else if (text != it->second.text)
     {
       SDL_DestroyTexture(it->second.texture);
-      auto texture = computeStandalone(text);
+      auto texture = computeStandalone(text, font);
       it->second = { text, texture.first, texture.second };
       return it;
     }
@@ -162,12 +160,12 @@ public:
   }
 
 
-  map_t::const_iterator get(const std::string& text)
+  map_t::const_iterator get(const std::string& text, TTF_Font* font)
   {
     map_t::const_iterator it = _cache.find(text);
 
     if (it == _cache.end())
-      it = compute(text);
+      it = compute(text, font);
 
     return it;
   }

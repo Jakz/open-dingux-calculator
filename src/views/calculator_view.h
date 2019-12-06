@@ -35,12 +35,12 @@ namespace ui
       static constexpr u32 VALUE_LABEL_KEY = 123;
       static char buffer[512];
       layout.renderValue(buffer, 512, gfx::ValueRenderMode::DECIMAL, calculator.value());
-      auto texture = gvm->cache()->get(buffer, VALUE_LABEL_KEY);
+      auto texture = gvm->cache()->get(buffer, VALUE_LABEL_KEY, gvm->font());
       SDL_Rect dest = { 288 - texture->second.rect.w, 25, texture->second.rect.w, texture->second.rect.h };
       SDL_RenderCopy(renderer, texture->second.texture, nullptr, &dest);
 
       if (calculator.hasMemory())
-        gvm->blit(gvm->cache()->texture(), gvm->cache()->get("m")->second, 20, 18);
+        gvm->blit(gvm->cache()->texture(), gvm->cache()->get("m", gvm->tinyFont())->second, 20, 18);
     }
 
     void handleKeyboardEvent(const SDL_Event& event) override

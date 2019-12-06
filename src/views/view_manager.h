@@ -31,7 +31,7 @@ namespace ui
   private:
     LabelCache<true> _cache;
     SDL_Texture* textureUI;
-    TTF_Font* font;
+    TTF_Font *_font, *_tinyFont;
 
     std::array<view_t*, 2> views;
     view_t* view;
@@ -46,6 +46,9 @@ namespace ui
     void render();
 
     void deinit();
+
+    TTF_Font* font() { return _font; }
+    TTF_Font* tinyFont() { return _tinyFont; }
 
     void renderButton(int x, int y, int w, int h, const std::string& label, SDL_Color color, ButtonStyle style);
     void renderButtonBackground(int x, int y, int w, int h, int bx, int by);

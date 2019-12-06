@@ -339,7 +339,7 @@ namespace ui
     for (const auto& function : functions)
       function.render(renderer, env);
 
-    auto label = gvm->cache()->get("𝑦 = 3sin(𝑥) + 4cos(2𝑥)", 8000, color_t(255, 128, 0));
+    auto label = gvm->cache()->get("𝑦 = 3sin(𝑥) + 4cos(2𝑥)", 8000, gvm->tinyFont(), color_t(255, 128, 0));
     gvm->blit(label->second.texture, label->second.rect, 0, 10);
 
     drawAxes();
